@@ -1,0 +1,14 @@
+run:
+  timeout: 3m
+  skip-dirs:
+    - frontend
+    - .data
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+

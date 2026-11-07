@@ -1,0 +1,160 @@
+.row {
+  display: flex;
+  flex-direction: column;
+  max-width: var(--message-max-width);
+  gap: var(--space-1);
+}
+
+.rowOwn {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.rowOther {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.senderHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
+}
+
+.senderName {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.bubble {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  word-break: break-word;
+  border: 1px solid transparent;
+}
+
+.bubbleOwn {
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.bubbleOther {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.bubbleDeleted {
+  background-color: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-strong);
+  font-style: italic;
+}
+
+.bubbleFailed {
+  border-color: var(--color-danger);
+}
+
+.replyQuote {
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid currentColor;
+  border-radius: var(--radius-sm);
+  background-color: rgba(0, 0, 0, 0.08);
+  font-size: var(--font-size-xs);
+  opacity: 0.92;
+}
+
+.replyAuthor {
+  display: block;
+  font-weight: 600;
+}
+
+.replySnippet {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 38ch;
+}
+
+.bodyText {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.attachmentLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: rgba(0, 0, 0, 0.12);
+  color: inherit;
+  text-decoration: none;
+  font-size: var(--font-size-xs);
+}
+
+.attachmentLink:hover {
+  text-decoration: underline;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.failedText {
+  color: var(--color-danger);
+  font-weight: 500;
+}
+
+.actionsBar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.actionBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.actionBtn:hover {
+  background-color: var(--color-surface-secondary);
+  color: var(--color-text);
+}
+
+.retryBtn {
+  background-color: var(--color-danger-subtle);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+

@@ -1,0 +1,106 @@
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.contextBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-secondary);
+  border-left: 3px solid var(--color-accent);
+  font-size: var(--font-size-xs);
+}
+
+.contextInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.contextTitle {
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.contextSnippet {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachmentsBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.attachmentChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+}
+
+.attachmentChipFailed {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  padding: 0 var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.textarea {
+  flex: 1;
+  min-height: 42px;
+  max-height: 140px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-surface-secondary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  resize: vertical;
+}
+
+.textarea:focus {
+  background-color: var(--color-surface);
+  border-color: var(--color-accent);
+}
+
+.footerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.errorText {
+  color: var(--color-danger);
+  font-weight: 500;
+}
+

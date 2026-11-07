@@ -1,0 +1,52 @@
+# Variáveis de ambiente e segredos (nunca versionar)
+.env
+.env.*
+!.env.example
+**/frontend/.env
+**/frontend/.env.*
+
+# Dependências e builds do Frontend (Node / Vite / TypeScript)
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+.vite/
+frontend/.vite/
+coverage/
+frontend/coverage/
+
+# Binários e artefatos de compilação/teste do Go
+bin/
+/chat-api
+/userctl
+/api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+
+# Dados locais de execução e uploads
+/.data/
+/uploads/
+
+# Diretórios de plataformas de deploy
+.vercel/
+frontend/.vercel/
+.railway/
+
+# Logs e arquivos temporários de sistema/IDE
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+tmp/

@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-chat_online}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB:-chat_online}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: 0.0.0.0:8080
+      DATABASE_URL: ${DATABASE_URL:?Defina DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET:?Defina SESSION_SECRET com pelo menos 32 caracteres}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Defina ALLOWED_ORIGINS}
+      SECURE_COOKIES: ${SECURE_COOKIES:-true}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-24}
+      SEED_DEV_USERS: "false"
+      STATIC_FILES_DIR: /app/public
+      UPLOAD_STORAGE_DIR: /app/uploads
+    volumes:
+      - uploads_prod_data:/app/uploads
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  postgres_prod_data:
+  uploads_prod_data:
+

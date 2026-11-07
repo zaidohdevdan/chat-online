@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: chat-online-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /readyz
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECURE_COOKIES
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: none
+      - key: SEED_DEV_USERS
+        value: "false"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://*.vercel.app
+

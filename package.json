@@ -1,0 +1,13 @@
+{
+  "name": "chat-online-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "./scripts/dev.sh",
+    "dev:front": "npm --prefix frontend run dev",
+    "dev:back": "go run ./cmd/api",
+    "build": "npm --prefix frontend run build && go build ./...",
+    "typecheck": "npm --prefix frontend run typecheck && go vet ./cmd/... ./internal/... ./migrations/...",
+    "lint": "npm --prefix frontend run lint",
+    "test": "npm --prefix frontend run test && go test -race ./internal/... ./cmd/..."
+  }
+}

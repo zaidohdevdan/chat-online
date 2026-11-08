@@ -20,6 +20,7 @@ function normalizeSessionPayload(raw: AuthSessionResponse | (User & { csrfToken:
     username: rawUser.username,
     displayName: rawUser.displayName,
     avatarUrl: rawUser.avatarUrl,
+    publicKey: rawUser.publicKey,
     isAdmin: rawUser.isAdmin,
     createdAt: rawUser.createdAt,
   };
@@ -119,6 +120,13 @@ export async function changeOwnPassword(
   await apiRequest<void>('/me/password', {
     method: 'POST',
     body: { currentPassword, newPassword },
+  });
+}
+
+export async function publishIdentityPublicKey(publicKey: string): Promise<void> {
+  await apiRequest<void>('/me/keys', {
+    method: 'PUT',
+    body: { publicKey },
   });
 }
 

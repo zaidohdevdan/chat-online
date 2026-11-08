@@ -8,10 +8,12 @@ export interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
+  secondaryLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
   isLoading?: boolean;
   onConfirm: () => void;
+  onSecondaryAction?: () => void;
   onCancel: () => void;
 }
 
@@ -20,10 +22,12 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = ptBR.common.confirm,
+  secondaryLabel,
   cancelLabel = ptBR.common.cancel,
   danger = false,
   isLoading = false,
   onConfirm,
+  onSecondaryAction,
   onCancel,
 }: ConfirmDialogProps) {
   const titleId = useId();
@@ -75,6 +79,15 @@ export function ConfirmDialog({
           <Button ref={cancelRef} variant="secondary" onClick={onCancel} disabled={isLoading}>
             {cancelLabel}
           </Button>
+          {secondaryLabel && onSecondaryAction && (
+            <Button
+              variant="secondary"
+              onClick={onSecondaryAction}
+              disabled={isLoading}
+            >
+              {secondaryLabel}
+            </Button>
+          )}
           <Button
             variant={danger ? 'danger' : 'primary'}
             onClick={onConfirm}

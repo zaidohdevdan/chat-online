@@ -9,8 +9,14 @@ import {
 } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, onSessionExpired, setCsrfToken } from '../../../lib/http';
+import { ensureUserIdentityPublicKey } from '../../../lib/e2ee';
 import { defaultRealtimeClient, type RealtimeClient } from '../../../lib/realtime';
-import { fetchCurrentUser, loginWithCredentials, logoutSession } from '../api';
+import {
+  fetchCurrentUser,
+  loginWithCredentials,
+  logoutSession,
+  publishIdentityPublicKey,
+} from '../api';
 import type { LoginRequest, User } from '../types';
 
 export const AUTH_ME_QUERY_KEY = ['auth', 'me'] as const;
@@ -64,6 +70,13 @@ export function AuthProvider({
   useEffect(() => {
     if (user) {
       realtimeClient.connect();
+      void ensureUserIdentityPublicKey(user.id).then((pubKey) => {
+        if (pubKey && user.publicKey !== pubKey) {
+          void publishIdentityPublicKey(pubKey).catch(() => {
+            // Non-blocking E2EE key publication
+          });
+        }
+      });
     } else {
       realtimeClient.disconnect();
     }

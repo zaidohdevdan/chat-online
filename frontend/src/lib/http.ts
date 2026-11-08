@@ -77,14 +77,14 @@ function notifySessionExpired(): void {
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   formData?: FormData;
   signal?: AbortSignal;
   headers?: Record<string, string>;
 }
 
-const MUTATING_METHODS = new Set(['POST', 'PATCH', 'DELETE']);
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET';

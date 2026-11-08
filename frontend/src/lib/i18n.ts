@@ -141,6 +141,15 @@ export const ptBR = {
     notFoundBody: 'Esta conversa não existe ou você não tem acesso a ela.',
     typingSingle: (name: string) => `${name} está digitando…`,
     typingMultiple: 'Várias pessoas estão digitando…',
+    e2eeBadge: '🔒 Criptografia ponta a ponta (Signal E2EE)',
+    deleteConversationDirectButton: 'Apagar conversa',
+    deleteConversationGroupButton: 'Apagar grupo',
+    deleteConversationDirectTitle: 'Apagar conversa para você?',
+    deleteConversationDirectBody:
+      'A conversa e o histórico local serão apagados apenas do seu lado. A outra pessoa continuará com o histórico dela.',
+    deleteConversationGroupTitle: 'Excluir grupo e apagar tudo?',
+    deleteConversationGroupBody:
+      'O grupo será excluído permanentemente para todos os participantes e todas as mensagens serão apagadas (hard delete).',
   },
   message: {
     deleted: 'Mensagem apagada',
@@ -163,7 +172,8 @@ export const ptBR = {
     },
     deleteConfirmTitle: 'Apagar mensagem?',
     deleteConfirmBody:
-      'A mensagem será marcada como apagada e seus anexos deixarão de ficar disponíveis para os participantes.',
+      'Escolha se deseja remover esta mensagem apenas para você ou apagá-la permanentemente para todos os participantes.',
+    deleteForMeButton: 'Apagar só para mim',
     deleteConfirmButton: 'Apagar mensagem',
   },
   composer: {

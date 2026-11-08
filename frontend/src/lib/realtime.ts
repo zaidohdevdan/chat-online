@@ -8,13 +8,14 @@ export interface ServerEventMap {
   'connection.ready': { heartbeatIntervalMs: number; maxClientFrameBytes: number };
   'message.created': { message: Message };
   'message.updated': { message: Message };
-  'message.deleted': { messageId: string; deletedAt: string };
+  'message.deleted': { messageId: string; deletedAt: string; hardDelete?: boolean };
   'message.delivered': { messageId: string; userId: string; deliveredAt: string };
   'message.read': { userId: string; lastReadMessageId: string; readAt: string };
   'typing.started': { userId: string };
   'typing.stopped': { userId: string };
   'presence.updated': { userId: string; status: PresenceStatus; lastSeenAt?: string };
   'conversation.updated': { conversation: Conversation };
+  'conversation.deleted': { conversationId: string };
   'sync.completed': { conversationId: string; lastSequence: number };
   'sync.reset': { conversationId: string };
   error: { code: string; message: string };

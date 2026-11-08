@@ -133,8 +133,8 @@ func (s *Service) Edit(ctx context.Context, messageID, userID, body string) (*Me
 	return msg, nil
 }
 
-func (s *Service) Delete(ctx context.Context, messageID, userID string) error {
-	env, err := s.repo.DeleteMessage(ctx, messageID, userID)
+func (s *Service) Delete(ctx context.Context, messageID, userID, scope, conversationIDHint string) error {
+	env, err := s.repo.DeleteMessage(ctx, messageID, userID, scope, conversationIDHint)
 	if err != nil {
 		return err
 	}

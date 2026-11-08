@@ -20,6 +20,7 @@ type Envelope struct {
 
 type Publisher interface {
 	PublishConversationEvent(ctx context.Context, env Envelope)
+	PublishToUsers(userIDs []string, env Envelope)
 }
 
 // AppendDurableEvent locks the conversation row in the current transaction,

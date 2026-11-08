@@ -151,7 +151,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	messageID := chi.URLParam(r, "id")
-	err := h.service.Delete(r.Context(), messageID, sess.User.ID)
+	scope := r.URL.Query().Get("scope")
+	convIDHint := r.URL.Query().Get("conversationId")
+	err := h.service.Delete(r.Context(), messageID, sess.User.ID, scope, convIDHint)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrMessageNotFound):

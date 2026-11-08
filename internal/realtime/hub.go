@@ -147,6 +147,11 @@ func (h *Hub) PublishConversationEvent(ctx context.Context, env Envelope) {
 	h.sendToUsers(memberIDs, env)
 }
 
+func (h *Hub) PublishToUsers(userIDs []string, env Envelope) {
+	h.markLocallyPublished(env.ID)
+	h.sendToUsers(userIDs, env)
+}
+
 func (h *Hub) sendToUsers(userIDs []string, env Envelope) {
 	raw, err := json.Marshal(env)
 	if err != nil {

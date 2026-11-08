@@ -52,6 +52,7 @@ O `sequence` é atribuído na mesma transação que grava a mudança, com lock n
 | `typing.started` / `typing.stopped` | `{ userId }` |
 | `presence.updated` | `{ userId, status: "online" \| "offline", lastSeenAt? }` |
 | `conversation.updated` | `{ conversation: Conversation }` |
+| `conversation.deleted` | `{ conversationId }` |
 | `sync.completed` | `{ conversationId, lastSequence }` |
 | `sync.reset` | `{ conversationId }` |
 | `error` | `{ code, message }` |

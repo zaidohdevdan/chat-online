@@ -106,6 +106,11 @@ func (r *Repository) Create(
 			return "", nil, false, err
 		}
 		if found {
+			_, _ = r.pool.Exec(ctx, `
+				UPDATE conversation_members
+				SET hidden_at = NULL
+				WHERE conversation_id = $1 AND user_id::text = ANY($2)
+			`, existingID, memberIDs)
 			return existingID, nil, false, nil
 		}
 	}
@@ -285,7 +290,8 @@ func (r *Repository) ListForUser(ctx context.Context, userID string, cursor *str
 				cm.last_read_message_id::text
 			FROM conversations c
 			JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = $1
-			WHERE (c.updated_at, c.id) < ($2, $3::uuid)
+			WHERE cm.hidden_at IS NULL
+			  AND (c.updated_at, c.id) < ($2, $3::uuid)
 			ORDER BY c.updated_at DESC, c.id DESC
 			LIMIT $4
 		`, userID, decoded.UpdatedAt, decoded.ID, limit+1)
@@ -299,6 +305,7 @@ func (r *Repository) ListForUser(ctx context.Context, userID string, cursor *str
 				cm.last_read_message_id::text
 			FROM conversations c
 			JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = $1
+			WHERE cm.hidden_at IS NULL
 			ORDER BY c.updated_at DESC, c.id DESC
 			LIMIT $2
 		`, userID, limit+1)
@@ -364,20 +371,6 @@ func (r *Repository) MarkRead(ctx context.Context, conversationID, userID, lastR
 		return nil, ErrConversationNotFound
 	}
 
-	var msgExists bool
-	err = tx.QueryRow(ctx, `
-		SELECT EXISTS(
-			SELECT 1 FROM messages
-			WHERE id = $1 AND conversation_id = $2
-		)
-	`, lastReadMessageID, conversationID).Scan(&msgExists)
-	if err != nil {
-		return nil, err
-	}
-	if !msgExists {
-		return nil, ErrMessageNotFound
-	}
-
 	_, err = tx.Exec(ctx, `
 		UPDATE conversation_members
 		SET last_read_message_id = $3,
@@ -404,9 +397,79 @@ func (r *Repository) MarkRead(ctx context.Context, conversationID, userID, lastR
 	return env, nil
 }
 
+func (r *Repository) DeleteConversation(ctx context.Context, conversationID, userID string) (*realtime.Envelope, []string, error) {
+	if _, err := uuid.Parse(conversationID); err != nil {
+		return nil, nil, ErrConversationNotFound
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	var convType string
+	err = tx.QueryRow(ctx, `
+		SELECT c.type
+		FROM conversations c
+		JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = $2
+		WHERE c.id = $1
+		FOR UPDATE OF c
+	`, conversationID, userID).Scan(&convType)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil, ErrConversationNotFound
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if convType == "direct" {
+		now := time.Now().UTC()
+		_, err = tx.Exec(ctx, `
+			UPDATE conversation_members
+			SET hidden_at = $3, cleared_at = $3
+			WHERE conversation_id = $1 AND user_id = $2
+		`, conversationID, userID, now)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, nil, err
+		}
+		return nil, nil, nil
+	}
+
+	// Group conversation: hard delete the group, all members, and all messages for everyone
+	members, err := queryMembersTx(ctx, tx, conversationID)
+	if err != nil {
+		return nil, nil, err
+	}
+	memberIDs := make([]string, 0, len(members))
+	for _, m := range members {
+		memberIDs = append(memberIDs, m.ID)
+	}
+
+	_, err = tx.Exec(ctx, `DELETE FROM conversations WHERE id = $1`, conversationID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	convCopy := conversationID
+	env, _ := realtime.NewEphemeralEnvelope(&convCopy, "conversation.deleted", map[string]any{
+		"conversationId": conversationID,
+	})
+	return env, memberIDs, nil
+}
+
 func (r *Repository) hydrateConversation(ctx context.Context, conv *Conversation, currentUserID string) error {
 	rows, err := r.pool.Query(ctx, `
-		SELECT u.id::text, u.display_name, u.avatar_url
+		SELECT u.id::text, u.username, u.display_name, u.avatar_url, u.public_key
 		FROM conversation_members cm
 		JOIN users u ON u.id = cm.user_id
 		WHERE cm.conversation_id = $1
@@ -420,7 +483,7 @@ func (r *Repository) hydrateConversation(ctx context.Context, conv *Conversation
 	members := make([]users.UserSummary, 0)
 	for rows.Next() {
 		var m users.UserSummary
-		if err := rows.Scan(&m.ID, &m.DisplayName, &m.AvatarURL); err != nil {
+		if err := rows.Scan(&m.ID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.PublicKey); err != nil {
 			return err
 		}
 		members = append(members, m)
@@ -430,7 +493,7 @@ func (r *Repository) hydrateConversation(ctx context.Context, conv *Conversation
 	}
 	conv.Members = members
 
-	// Load last message if any
+	// Load last message if any (filtering out cleared_at and message_hidden_for for currentUserID)
 	var lastMsg MessagePreview
 	err = r.pool.QueryRow(ctx, `
 		SELECT
@@ -447,9 +510,16 @@ func (r *Repository) hydrateConversation(ctx context.Context, conv *Conversation
 		FROM messages m
 		JOIN users u ON u.id = m.sender_id
 		WHERE m.conversation_id = $1
+		  AND m.created_at > COALESCE(
+		    (SELECT cleared_at FROM conversation_members WHERE conversation_id = $1 AND user_id = $2),
+		    '1970-01-01T00:00:00Z'::timestamptz
+		  )
+		  AND NOT EXISTS (
+		    SELECT 1 FROM message_hidden_for mhf WHERE mhf.message_id = m.id AND mhf.user_id = $2
+		  )
 		ORDER BY m.created_at DESC, m.id DESC
 		LIMIT 1
-	`, conv.ID).Scan(
+	`, conv.ID, currentUserID).Scan(
 		&lastMsg.ID,
 		&lastMsg.ConversationID,
 		&lastMsg.Sender.ID,
@@ -512,7 +582,7 @@ func (r *Repository) hydrateConversation(ctx context.Context, conv *Conversation
 
 func queryMembersTx(ctx context.Context, tx pgx.Tx, conversationID string) ([]users.UserSummary, error) {
 	rows, err := tx.Query(ctx, `
-		SELECT u.id::text, u.display_name, u.avatar_url
+		SELECT u.id::text, u.username, u.display_name, u.avatar_url, u.public_key
 		FROM conversation_members cm
 		JOIN users u ON u.id = cm.user_id
 		WHERE cm.conversation_id = $1
@@ -526,7 +596,7 @@ func queryMembersTx(ctx context.Context, tx pgx.Tx, conversationID string) ([]us
 	members := make([]users.UserSummary, 0)
 	for rows.Next() {
 		var m users.UserSummary
-		if err := rows.Scan(&m.ID, &m.DisplayName, &m.AvatarURL); err != nil {
+		if err := rows.Scan(&m.ID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.PublicKey); err != nil {
 			return nil, err
 		}
 		members = append(members, m)

@@ -44,6 +44,7 @@ type UserSummary struct {
 	Username    string  `json:"username,omitempty"`
 	DisplayName string  `json:"displayName"`
 	AvatarURL   *string `json:"avatarUrl,omitempty"`
+	PublicKey   *string `json:"publicKey,omitempty"`
 }
 
 type User struct {
@@ -51,6 +52,7 @@ type User struct {
 	Username    string    `json:"username,omitempty"`
 	DisplayName string    `json:"displayName"`
 	AvatarURL   *string   `json:"avatarUrl,omitempty"`
+	PublicKey   *string   `json:"publicKey,omitempty"`
 	IsAdmin     bool      `json:"isAdmin,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
@@ -86,12 +88,13 @@ func (r *Repository) Create(ctx context.Context, username, displayName, password
 		ON CONFLICT (username) DO UPDATE
 		SET display_name = EXCLUDED.display_name,
 		    password_hash = EXCLUDED.password_hash
-		RETURNING id::text, username, display_name, avatar_url, password_hash, created_at
+		RETURNING id::text, username, display_name, avatar_url, public_key, password_hash, created_at
 	`, id, normalized, displayName, avatarURL, passwordHash, now).Scan(
 		&rec.ID,
 		&rec.Username,
 		&rec.DisplayName,
 		&rec.AvatarURL,
+		&rec.PublicKey,
 		&rec.PasswordHash,
 		&rec.CreatedAt,
 	)
@@ -143,10 +146,10 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
 	}
 	var u User
 	err := r.pool.QueryRow(ctx, `
-		SELECT id::text, username, display_name, avatar_url, created_at
+		SELECT id::text, username, display_name, avatar_url, public_key, created_at
 		FROM users
 		WHERE id = $1
-	`, id).Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.CreatedAt)
+	`, id).Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.PublicKey, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
@@ -163,7 +166,7 @@ func (r *Repository) GetRecordByID(ctx context.Context, id string) (*UserRecord,
 	}
 	var rec UserRecord
 	err := r.pool.QueryRow(ctx, `
-		SELECT id::text, username, display_name, avatar_url, password_hash, created_at
+		SELECT id::text, username, display_name, avatar_url, public_key, password_hash, created_at
 		FROM users
 		WHERE id = $1
 	`, id).Scan(
@@ -171,6 +174,7 @@ func (r *Repository) GetRecordByID(ctx context.Context, id string) (*UserRecord,
 		&rec.Username,
 		&rec.DisplayName,
 		&rec.AvatarURL,
+		&rec.PublicKey,
 		&rec.PasswordHash,
 		&rec.CreatedAt,
 	)
@@ -203,12 +207,30 @@ func (r *Repository) UpdatePasswordHash(ctx context.Context, userID, passwordHas
 	return nil
 }
 
+func (r *Repository) UpdatePublicKey(ctx context.Context, userID, publicKey string) error {
+	if _, err := uuid.Parse(userID); err != nil {
+		return ErrUserNotFound
+	}
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE users
+		SET public_key = $2
+		WHERE id = $1
+	`, userID, strings.TrimSpace(publicKey))
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
 func (r *Repository) GetByIDs(ctx context.Context, ids []string) ([]UserSummary, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT id::text, username, display_name, avatar_url
+		SELECT id::text, username, display_name, avatar_url, public_key
 		FROM users
 		WHERE id::text = ANY($1)
 		ORDER BY display_name ASC
@@ -221,7 +243,7 @@ func (r *Repository) GetByIDs(ctx context.Context, ids []string) ([]UserSummary,
 	var result []UserSummary
 	for rows.Next() {
 		var u UserSummary
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.PublicKey); err != nil {
 			return nil, err
 		}
 		result = append(result, u)
@@ -233,7 +255,7 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (*UserR
 	normalized := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
 	var rec UserRecord
 	err := r.pool.QueryRow(ctx, `
-		SELECT id::text, username, display_name, avatar_url, password_hash, created_at
+		SELECT id::text, username, display_name, avatar_url, public_key, password_hash, created_at
 		FROM users
 		WHERE username = $1
 	`, normalized).Scan(
@@ -241,6 +263,7 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (*UserR
 		&rec.Username,
 		&rec.DisplayName,
 		&rec.AvatarURL,
+		&rec.PublicKey,
 		&rec.PasswordHash,
 		&rec.CreatedAt,
 	)
@@ -278,6 +301,7 @@ func (r *Repository) AddContactByUsername(ctx context.Context, ownerID, username
 		Username:    target.Username,
 		DisplayName: target.DisplayName,
 		AvatarURL:   target.AvatarURL,
+		PublicKey:   target.PublicKey,
 	}, tag.RowsAffected() > 0, nil
 }
 
@@ -288,7 +312,7 @@ func (r *Repository) SearchContacts(ctx context.Context, ownerID, query string, 
 	pattern := "%" + strings.ToLower(strings.TrimSpace(query)) + "%"
 
 	rows, err := r.pool.Query(ctx, `
-		SELECT u.id::text, u.username, u.display_name, u.avatar_url
+		SELECT u.id::text, u.username, u.display_name, u.avatar_url, u.public_key
 		FROM user_contacts uc
 		JOIN users u ON u.id = uc.contact_id
 		WHERE uc.owner_id = $1
@@ -304,7 +328,7 @@ func (r *Repository) SearchContacts(ctx context.Context, ownerID, query string, 
 	result := make([]UserSummary, 0)
 	for rows.Next() {
 		var u UserSummary
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.PublicKey); err != nil {
 			return nil, err
 		}
 		result = append(result, u)

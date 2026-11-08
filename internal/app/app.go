@@ -155,6 +155,7 @@ func (a *Application) buildRouter(
 
 				csrfProtected.Get("/me", authHandler.GetMe)
 				csrfProtected.Post("/me/password", authHandler.ChangePassword)
+				csrfProtected.Put("/me/keys", authHandler.PublishKeys)
 				csrfProtected.Post("/auth/logout", authHandler.Logout)
 
 				csrfProtected.Get("/admin/account-requests", authHandler.AdminListAccountRequests)
@@ -168,6 +169,7 @@ func (a *Application) buildRouter(
 				csrfProtected.Get("/conversations", convHandler.List)
 				csrfProtected.Post("/conversations", convHandler.Create)
 				csrfProtected.Get("/conversations/{id}", convHandler.GetByID)
+				csrfProtected.Delete("/conversations/{id}", convHandler.Delete)
 				csrfProtected.Post("/conversations/{id}/read", convHandler.MarkRead)
 
 				csrfProtected.Get("/conversations/{id}/messages", msgHandler.List)

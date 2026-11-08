@@ -14,6 +14,7 @@ export interface ConversationDetailsProps {
   messages: ClientMessage[];
   isMobile: boolean;
   onClose: () => void;
+  onRequestDeleteConversation: () => void;
   getPresence: (userId: string) => UserPresence | undefined;
 }
 
@@ -23,6 +24,7 @@ export function ConversationDetails({
   messages,
   isMobile,
   onClose,
+  onRequestDeleteConversation,
   getPresence,
 }: ConversationDetailsProps) {
   const { title, avatarUrl } = getConversationDisplayInfo(conversation, currentUserId);
@@ -62,8 +64,18 @@ export function ConversationDetails({
         <span className={styles.convType}>
           {conversation.type === 'group'
             ? ptBR.details.conversationTypeGroup
-            : ptBR.details.conversationTypeDirect}
+            : ptBR.details.conversationTypeDirect}{' '}
+          · {ptBR.chat.e2eeBadge}
         </span>
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={onRequestDeleteConversation}
+        >
+          {conversation.type === 'group'
+            ? ptBR.chat.deleteConversationGroupButton
+            : ptBR.chat.deleteConversationDirectButton}
+        </Button>
       </div>
 
       <section className={styles.section}>

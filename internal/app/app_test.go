@@ -50,7 +50,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *app.Application) {
 	}
 
 	// Clean test tables before running test suite
-	_, err = pool.Exec(ctx, `TRUNCATE events, attachments, messages, conversation_members, conversations, account_requests, user_contacts, sessions, users CASCADE`)
+	_, err = pool.Exec(ctx, `TRUNCATE events, attachments, message_deliveries, message_hidden_for, messages, conversation_members, conversations, account_requests, user_contacts, sessions, users CASCADE`)
 	if err != nil {
 		pool.Close()
 		t.Fatalf("truncate tables: %v", err)
@@ -543,10 +543,99 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 		t.Fatalf("expected 204 marking conversation read, got %d", resp.StatusCode)
 	}
 
-	// 13. Delete message (DELETE /messages/{id})
-	resp, _ = aliceClient.doJSON(http.MethodDelete, "/api/v1/messages/"+sentMsg.ID, nil, true)
+	// 13. Delete message (DELETE /messages/{id}?scope=me hides for Bob, then DELETE /messages/{id}?scope=all hard-deletes for all)
+	resp, _ = bobClient.doJSON(http.MethodDelete, "/api/v1/messages/"+sentMsg.ID+"?scope=me", nil, true)
 	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("expected 204 deleting message, got %d", resp.StatusCode)
+		t.Fatalf("expected 204 hiding message for Bob (scope=me), got %d", resp.StatusCode)
+	}
+
+	resp, _ = aliceClient.doJSON(http.MethodDelete, "/api/v1/messages/"+sentMsg.ID+"?scope=all", nil, true)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 hard-deleting message (scope=all), got %d", resp.StatusCode)
+	}
+
+	// 13.5 E2EE Key publishing (PUT /me/keys), Signal Ephemeral Queue Purge on Ack, and Conversation Deletion (Direct vs Group)
+	resp, raw = aliceClient.doJSON(http.MethodPut, "/api/v1/me/keys", map[string]string{
+		"publicKey": `{"kty":"EC","crv":"P-256","x":"testX","y":"testY"}`,
+	}, true)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 publishing E2EE public key, got %d: %s", resp.StatusCode, string(raw))
+	}
+
+	// Send an E2EE message and verify Signal Ephemeral Queue purges it once Bob acknowledges delivery
+	resp, raw = aliceClient.doJSON(http.MethodPost, sendPath, map[string]any{
+		"body":             "E2EE:v1:encrypted-packet",
+		"clientMessageId":  "client-msg-e2ee-001",
+		"replyToMessageId": nil,
+		"attachmentIds":    []string{},
+	}, true)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 sending E2EE message, got %d: %s", resp.StatusCode, string(raw))
+	}
+	var e2eeMsg messages.Message
+	_ = json.Unmarshal(raw, &e2eeMsg)
+
+	// Send message.ack over Bob's WebSocket so the Signal Ephemeral Queue purges the message
+	ackPayload, _ := json.Marshal(map[string]any{
+		"type": "message.ack",
+		"data": map[string]any{
+			"conversationId": createdConv.ID,
+			"messageId":      e2eeMsg.ID,
+		},
+	})
+	if err := wsConn.Write(wsCtx, websocket.MessageText, ackPayload); err != nil {
+		t.Fatalf("write message.ack: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+
+	// After Bob acknowledges delivery, the Signal queue must have purged the message from PostgreSQL
+	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/conversations/"+createdConv.ID+"/messages", nil, false)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 listing messages after Signal purge, got %d", resp.StatusCode)
+	}
+	var msgPage struct {
+		Data []messages.Message `json:"data"`
+	}
+	_ = json.Unmarshal(raw, &msgPage)
+	for _, m := range msgPage.Data {
+		if m.ID == e2eeMsg.ID {
+			t.Fatalf("expected message %s to be purged from DB after delivery ack", e2eeMsg.ID)
+		}
+	}
+
+	// Direct conversation deletion hides it only for Alice while Bob still sees it
+	resp, _ = aliceClient.doJSON(http.MethodDelete, "/api/v1/conversations/"+createdConv.ID, nil, true)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 deleting direct conversation for Alice, got %d", resp.StatusCode)
+	}
+	resp, raw = bobClient.doJSON(http.MethodGet, "/api/v1/conversations", nil, false)
+	var bobConvs struct {
+		Data []conversations.Conversation `json:"data"`
+	}
+	_ = json.Unmarshal(raw, &bobConvs)
+	if len(bobConvs.Data) != 1 {
+		t.Fatalf("expected Bob to still see the direct conversation after Alice deleted it on her side, got %d", len(bobConvs.Data))
+	}
+
+	// Group conversation deletion removes all participants and hard-deletes the group
+	resp, raw = aliceClient.doJSON(http.MethodPost, "/api/v1/conversations", map[string]any{
+		"type":      "group",
+		"title":     "Grupo E2EE",
+		"memberIds": []string{uBob.ID},
+	}, true)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 creating group conversation, got %d: %s", resp.StatusCode, string(raw))
+	}
+	var groupConv conversations.Conversation
+	_ = json.Unmarshal(raw, &groupConv)
+
+	resp, _ = aliceClient.doJSON(http.MethodDelete, "/api/v1/conversations/"+groupConv.ID, nil, true)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 hard-deleting group conversation, got %d", resp.StatusCode)
+	}
+	resp, _ = bobClient.doJSON(http.MethodGet, "/api/v1/conversations/"+groupConv.ID, nil, false)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 for Bob after group was hard-deleted, got %d", resp.StatusCode)
 	}
 
 	// 14. Metrics endpoint (/metrics)

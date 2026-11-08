@@ -134,3 +134,24 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	sess, ok := auth.SessionFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+
+	convID := chi.URLParam(r, "id")
+	err := h.service.Delete(r.Context(), convID, sess.User.ID)
+	if err != nil {
+		if errors.Is(err, ErrConversationNotFound) {
+			httpx.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "Conversa não encontrada")
+			return
+		}
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao apagar conversa")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+

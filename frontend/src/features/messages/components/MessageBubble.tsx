@@ -125,23 +125,21 @@ export function MessageBubble({
               {ptBR.message.replyAction}
             </button>
             {isOwn && (
-              <>
-                <button
-                  type="button"
-                  className={styles.actionBtn}
-                  onClick={() => onEdit(message)}
-                >
-                  {ptBR.message.editAction}
-                </button>
-                <button
-                  type="button"
-                  className={styles.actionBtn}
-                  onClick={() => onRequestDelete(message)}
-                >
-                  {ptBR.message.deleteAction}
-                </button>
-              </>
+              <button
+                type="button"
+                className={styles.actionBtn}
+                onClick={() => onEdit(message)}
+              >
+                {ptBR.message.editAction}
+              </button>
             )}
+            <button
+              type="button"
+              className={styles.actionBtn}
+              onClick={() => onRequestDelete(message)}
+            >
+              {ptBR.message.deleteAction}
+            </button>
           </div>
         )}
       </div>

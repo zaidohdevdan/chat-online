@@ -42,6 +42,10 @@ func (s *Service) UpdatePasswordHash(ctx context.Context, userID, passwordHash s
 	return s.repo.UpdatePasswordHash(ctx, userID, passwordHash)
 }
 
+func (s *Service) UpdatePublicKey(ctx context.Context, userID, publicKey string) error {
+	return s.repo.UpdatePublicKey(ctx, userID, publicKey)
+}
+
 func (s *Service) CreateUser(ctx context.Context, username, displayName, passwordHash string, avatarURL *string) (*UserRecord, error) {
 	rec, approvedRequesters, err := s.repo.Create(ctx, username, displayName, passwordHash, avatarURL)
 	if err != nil {

@@ -184,6 +184,38 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type publishKeysRequest struct {
+	PublicKey string `json:"publicKey"`
+}
+
+func (h *Handler) PublishKeys(w http.ResponseWriter, r *http.Request) {
+	sess, ok := SessionFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+
+	var req publishKeysRequest
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192))
+	if err := dec.Decode(&req); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "BAD_REQUEST", "JSON inválido")
+		return
+	}
+
+	cleaned := strings.TrimSpace(req.PublicKey)
+	if cleaned == "" || len(cleaned) > 4096 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Chave pública E2EE inválida")
+		return
+	}
+
+	if err := h.service.UpdatePublicKey(r.Context(), sess.User.ID, cleaned); err != nil {
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao salvar chave pública")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) AdminListAccountRequests(w http.ResponseWriter, r *http.Request) {
 	sess, ok := SessionFromContext(r.Context())
 	if !ok {

@@ -5,13 +5,23 @@ import {
   useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query';
+import { decryptMessageBody, encryptMessageBody } from '../../../lib/e2ee';
 import type { Page } from '../../../lib/http';
 import { generateClientMessageId } from '../../../lib/ids';
 import type { RealtimeClient, ServerEventMap } from '../../../lib/realtime';
 import type { UserSummary } from '../../auth/types';
-import { CONVERSATIONS_QUERY_KEY } from '../../conversations/hooks/useConversations';
+import {
+  CONVERSATIONS_QUERY_KEY,
+  conversationDetailKey,
+} from '../../conversations/hooks/useConversations';
 import type { Conversation } from '../../conversations/types';
 import { deleteMessage, editMessage, listMessages, sendMessage } from '../api';
+import {
+  loadLocalMessages,
+  removeLocalMessage,
+  saveLocalMessages,
+  upsertLocalMessage,
+} from '../storage/localHistory';
 import type { ClientMessage, Message, ServerMessageStatus, Upload } from '../types';
 
 export const messagesQueryKey = (conversationId: string) =>
@@ -53,13 +63,57 @@ export function useMessages(params: {
 
   const query = useInfiniteQuery({
     queryKey: messagesQueryKey(conversationId ?? ''),
-    queryFn: ({ pageParam, signal }) =>
-      listMessages({
+    queryFn: async ({ pageParam, signal }) => {
+      const serverPage = await listMessages({
         conversationId: conversationId!,
         cursor: pageParam,
         limit: 30,
         signal,
-      }),
+      });
+
+      const decryptedServer = await Promise.all(
+        serverPage.data.map(async (m) => {
+          const plain = await decryptMessageBody(
+            m.body,
+            conversationId!,
+            currentUser?.id,
+          );
+          if (currentUser && m.sender.id !== currentUser.id) {
+            realtimeClient.sendMessageAck(m.id);
+          }
+          return { ...m, body: plain };
+        }),
+      );
+
+      if (!pageParam && currentUser) {
+        const localHistory = loadLocalMessages(currentUser.id, conversationId!);
+        const mergedMap = new Map<string, Message>();
+        for (const lm of localHistory) {
+          mergedMap.set(lm.id, lm);
+        }
+        for (const sm of decryptedServer) {
+          const prev = mergedMap.get(sm.id);
+          mergedMap.set(sm.id, {
+            ...prev,
+            ...sm,
+            status: mergeServerStatus(prev?.status, sm.status),
+          });
+        }
+        const combined = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        saveLocalMessages(currentUser.id, conversationId!, combined);
+        return {
+          ...serverPage,
+          data: combined,
+        };
+      }
+
+      return {
+        ...serverPage,
+        data: decryptedServer,
+      };
+    },
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: Boolean(conversationId && currentUser),
@@ -73,6 +127,9 @@ export function useMessages(params: {
 
   const insertOrUpdateCanonicalMessage = useCallback(
     (incoming: Message) => {
+      if (currentUser) {
+        upsertLocalMessage(currentUser.id, incoming.conversationId, incoming);
+      }
       queryClient.setQueryData<InfiniteData<Page<Message>>>(
         messagesQueryKey(incoming.conversationId),
         (old) => {
@@ -119,7 +176,7 @@ export function useMessages(params: {
         },
       );
     },
-    [queryClient],
+    [currentUser, queryClient],
   );
 
   // Subscribe to realtime message and sync events
@@ -130,7 +187,16 @@ export function useMessages(params: {
       if (envelope.type === 'message.created') {
         const data = envelope.data as ServerEventMap['message.created'];
         if (data?.message) {
-          insertOrUpdateCanonicalMessage(data.message);
+          void decryptMessageBody(
+            data.message.body,
+            data.message.conversationId,
+            currentUser.id,
+          ).then((plainBody) => {
+            insertOrUpdateCanonicalMessage({
+              ...data.message,
+              body: plainBody,
+            });
+          });
         }
         return;
       }
@@ -138,13 +204,23 @@ export function useMessages(params: {
       if (envelope.type === 'message.updated') {
         const data = envelope.data as ServerEventMap['message.updated'];
         if (data?.message) {
-          insertOrUpdateCanonicalMessage(data.message);
+          void decryptMessageBody(
+            data.message.body,
+            data.message.conversationId,
+            currentUser.id,
+          ).then((plainBody) => {
+            insertOrUpdateCanonicalMessage({
+              ...data.message,
+              body: plainBody,
+            });
+          });
         }
         return;
       }
 
       if (envelope.type === 'message.deleted' && envelope.conversationId) {
         const data = envelope.data as ServerEventMap['message.deleted'];
+        removeLocalMessage(currentUser.id, envelope.conversationId, data.messageId);
         queryClient.setQueryData<InfiniteData<Page<Message>>>(
           messagesQueryKey(envelope.conversationId),
           (old) => {
@@ -153,16 +229,7 @@ export function useMessages(params: {
               ...old,
               pages: old.pages.map((page) => ({
                 ...page,
-                data: page.data.map((m) =>
-                  m.id === data.messageId
-                    ? {
-                        ...m,
-                        body: null,
-                        attachments: [],
-                        deletedAt: data.deletedAt,
-                      }
-                    : m,
-                ),
+                data: page.data.filter((m) => m.id !== data.messageId),
               })),
             };
           },
@@ -302,14 +369,29 @@ export function useMessages(params: {
       });
 
       try {
-        const canonical = await sendMessage(targetConversationId, {
+        const activeConv = queryClient.getQueryData<Conversation>(
+          conversationDetailKey(targetConversationId),
+        );
+        const encryptedWireBody = await encryptMessageBody(
           body,
+          targetConversationId,
+          activeConv?.members,
+        );
+
+        const canonical = await sendMessage(targetConversationId, {
+          body: encryptedWireBody,
           clientMessageId,
           replyToMessageId,
           attachmentIds,
         });
 
-        // Remove optimistic message and store canonical server message
+        const canonicalDecrypted: Message = {
+          ...canonical,
+          body,
+          status: canonical.status ?? 'sent',
+        };
+
+        // Remove optimistic message and store canonical message with plaintext locally
         setOptimisticByConv((prev) => {
           const list = prev[targetConversationId] ?? [];
           return {
@@ -320,10 +402,7 @@ export function useMessages(params: {
           };
         });
 
-        insertOrUpdateCanonicalMessage({
-          ...canonical,
-          status: canonical.status ?? 'sent',
-        });
+        insertOrUpdateCanonicalMessage(canonicalDecrypted);
 
         // Also update conversation lastMessage in sidebar cache
         queryClient.setQueryData<InfiniteData<Page<Conversation>>>(
@@ -338,7 +417,7 @@ export function useMessages(params: {
                   conv.id === targetConversationId
                     ? {
                         ...conv,
-                        lastMessage: canonical,
+                        lastMessage: canonicalDecrypted,
                         updatedAt: canonical.createdAt,
                       }
                     : conv,
@@ -348,7 +427,7 @@ export function useMessages(params: {
           },
         );
 
-        return canonical;
+        return canonicalDecrypted;
       } catch (err) {
         setOptimisticByConv((prev) => {
           const list = prev[targetConversationId] ?? [];
@@ -410,18 +489,35 @@ export function useMessages(params: {
   );
 
   const editMutation = useMutation({
-    mutationFn: ({ messageId, body }: { messageId: string; body: string }) =>
-      editMessage(messageId, { body }),
+    mutationFn: async ({ messageId, body }: { messageId: string; body: string }) => {
+      const activeConv = conversationId
+        ? queryClient.getQueryData<Conversation>(conversationDetailKey(conversationId))
+        : undefined;
+      const encryptedWireBody = conversationId
+        ? await encryptMessageBody(body, conversationId, activeConv?.members)
+        : body;
+      const updated = await editMessage(messageId, { body: encryptedWireBody });
+      return { ...updated, body };
+    },
     onSuccess: (updated) => {
       insertOrUpdateCanonicalMessage(updated);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (messageId: string) => deleteMessage(messageId),
-    onSuccess: (_, messageId) => {
+    mutationFn: async (
+      input: string | { messageId: string; scope?: 'me' | 'all' },
+    ) => {
+      const messageId = typeof input === 'string' ? input : input.messageId;
+      const scope = typeof input === 'string' ? 'all' : (input.scope ?? 'all');
+      await deleteMessage(messageId, { scope, conversationId });
+      return { messageId, scope };
+    },
+    onSuccess: ({ messageId }) => {
       if (!conversationId) return;
-      const deletedAt = new Date().toISOString();
+      if (currentUser) {
+        removeLocalMessage(currentUser.id, conversationId, messageId);
+      }
       queryClient.setQueryData<InfiniteData<Page<Message>>>(
         messagesQueryKey(conversationId),
         (old) => {
@@ -430,11 +526,7 @@ export function useMessages(params: {
             ...old,
             pages: old.pages.map((page) => ({
               ...page,
-              data: page.data.map((m) =>
-                m.id === messageId
-                  ? { ...m, body: null, attachments: [], deletedAt }
-                  : m,
-              ),
+              data: page.data.filter((m) => m.id !== messageId),
             })),
           };
         },

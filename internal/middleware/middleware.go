@@ -52,7 +52,7 @@ func SecurityHeaders(allowedOrigins []string, enableHSTS bool) func(http.Handler
 			if origin != "" && isAllowedOrigin(origin, r.Host, allowedOrigins) {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, X-Request-Id")
 				w.Header().Set("Vary", "Origin")
 			}
@@ -63,7 +63,7 @@ func SecurityHeaders(allowedOrigins []string, enableHSTS bool) func(http.Handler
 			}
 
 			switch r.Method {
-			case http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodHead:
+			case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead:
 			default:
 				httpx.WriteError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Método HTTP não permitido")
 				return
@@ -145,7 +145,7 @@ func RequireCSRF(allowedOrigins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
-			case http.MethodPost, http.MethodPatch, http.MethodDelete:
+			case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 				origin := strings.TrimSpace(r.Header.Get("Origin"))
 				if origin != "" && !isAllowedOrigin(origin, r.Host, allowedOrigins) {
 					httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "Origem não autorizada")

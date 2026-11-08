@@ -52,6 +52,12 @@ export async function markConversationRead(
   });
 }
 
+export async function deleteConversation(conversationId: string): Promise<void> {
+  await apiRequest<void>(`/conversations/${encodeURIComponent(conversationId)}`, {
+    method: 'DELETE',
+  });
+}
+
 export function getConversationDisplayInfo(
   conversation: Conversation,
   currentUserId: string,

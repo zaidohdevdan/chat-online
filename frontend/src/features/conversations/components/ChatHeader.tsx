@@ -14,6 +14,7 @@ export interface ChatHeaderProps {
   detailsOpen: boolean;
   onBackToList: () => void;
   onToggleDetails: () => void;
+  onRequestDeleteConversation: () => void;
   getPresence: (userId: string) => UserPresence | undefined;
 }
 
@@ -24,6 +25,7 @@ export function ChatHeader({
   detailsOpen,
   onBackToList,
   onToggleDetails,
+  onRequestDeleteConversation,
   getPresence,
 }: ChatHeaderProps) {
   const { title, avatarUrl, peerUser } = getConversationDisplayInfo(
@@ -67,22 +69,31 @@ export function ChatHeader({
         />
         <div className={styles.info}>
           <h2 className={styles.title}>{title}</h2>
-          {subtitleText && (
-            <span className={isOnline ? styles.subtitleOnline : styles.subtitle}>
-              {subtitleText}
-            </span>
-          )}
+          <span className={isOnline ? styles.subtitleOnline : styles.subtitle}>
+            {subtitleText ? `${subtitleText} · ${ptBR.chat.e2eeBadge}` : ptBR.chat.e2eeBadge}
+          </span>
         </div>
       </div>
 
-      <Button
-        variant={detailsOpen ? 'secondary' : 'ghost'}
-        size="sm"
-        aria-expanded={detailsOpen}
-        onClick={onToggleDetails}
-      >
-        {ptBR.chat.toggleDetails}
-      </Button>
+      <div className={styles.left}>
+        <Button
+          variant="danger"
+          size="sm"
+          onClick={onRequestDeleteConversation}
+        >
+          {conversation.type === 'group'
+            ? ptBR.chat.deleteConversationGroupButton
+            : ptBR.chat.deleteConversationDirectButton}
+        </Button>
+        <Button
+          variant={detailsOpen ? 'secondary' : 'ghost'}
+          size="sm"
+          aria-expanded={detailsOpen}
+          onClick={onToggleDetails}
+        >
+          {ptBR.chat.toggleDetails}
+        </Button>
+      </div>
     </header>
   );
 }

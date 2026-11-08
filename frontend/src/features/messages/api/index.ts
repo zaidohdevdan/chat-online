@@ -54,8 +54,20 @@ export async function editMessage(
   });
 }
 
-export async function deleteMessage(messageId: string): Promise<void> {
-  await apiRequest<void>(`/messages/${encodeURIComponent(messageId)}`, {
+export async function deleteMessage(
+  messageId: string,
+  options?: { scope?: 'me' | 'all'; conversationId?: string },
+): Promise<void> {
+  const search = new URLSearchParams();
+  if (options?.scope) {
+    search.set('scope', options.scope);
+  }
+  if (options?.conversationId) {
+    search.set('conversationId', options.conversationId);
+  }
+  const qs = search.toString();
+  const suffix = qs ? `?${qs}` : '';
+  await apiRequest<void>(`/messages/${encodeURIComponent(messageId)}${suffix}`, {
     method: 'DELETE',
   });
 }

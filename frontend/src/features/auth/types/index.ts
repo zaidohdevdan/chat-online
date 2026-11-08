@@ -3,6 +3,7 @@ export type UserSummary = {
   username?: string;
   displayName: string;
   avatarUrl?: string;
+  publicKey?: string;
 };
 
 export type User = UserSummary & {

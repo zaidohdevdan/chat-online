@@ -113,10 +113,17 @@ func (r *Repository) ListByConversation(
 			FROM messages m
 			JOIN users u ON u.id = m.sender_id
 			WHERE m.conversation_id = $1
+			  AND m.created_at > COALESCE(
+			    (SELECT cleared_at FROM conversation_members WHERE conversation_id = $1 AND user_id = $5),
+			    '1970-01-01T00:00:00Z'::timestamptz
+			  )
+			  AND NOT EXISTS (
+			    SELECT 1 FROM message_hidden_for mhf WHERE mhf.message_id = m.id AND mhf.user_id = $5
+			  )
 			  AND (m.created_at, m.id) < ($2, $3::uuid)
 			ORDER BY m.created_at DESC, m.id DESC
 			LIMIT $4
-		`, conversationID, decoded.CreatedAt, decoded.ID, limit+1)
+		`, conversationID, decoded.CreatedAt, decoded.ID, limit+1, currentUserID)
 	} else {
 		rows, err = r.pool.Query(ctx, `
 			SELECT
@@ -133,9 +140,16 @@ func (r *Repository) ListByConversation(
 			FROM messages m
 			JOIN users u ON u.id = m.sender_id
 			WHERE m.conversation_id = $1
+			  AND m.created_at > COALESCE(
+			    (SELECT cleared_at FROM conversation_members WHERE conversation_id = $1 AND user_id = $3),
+			    '1970-01-01T00:00:00Z'::timestamptz
+			  )
+			  AND NOT EXISTS (
+			    SELECT 1 FROM message_hidden_for mhf WHERE mhf.message_id = m.id AND mhf.user_id = $3
+			  )
 			ORDER BY m.created_at DESC, m.id DESC
 			LIMIT $2
-		`, conversationID, limit+1)
+		`, conversationID, limit+1, currentUserID)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -221,6 +235,7 @@ func (r *Repository) CreateOrGetIdempotent(
 		return existing, nil, false, nil
 	}
 
+	var dbReplyToID *string
 	if p.ReplyToMessageID != nil && *p.ReplyToMessageID != "" {
 		if _, parseErr := uuid.Parse(*p.ReplyToMessageID); parseErr != nil {
 			return nil, nil, false, ErrMessageNotFound
@@ -231,8 +246,8 @@ func (r *Repository) CreateOrGetIdempotent(
 				SELECT 1 FROM messages WHERE id = $1 AND conversation_id = $2
 			)
 		`, *p.ReplyToMessageID, p.ConversationID).Scan(&replyExists)
-		if err != nil || !replyExists {
-			return nil, nil, false, ErrMessageNotFound
+		if err == nil && replyExists {
+			dbReplyToID = p.ReplyToMessageID
 		}
 	}
 
@@ -270,10 +285,15 @@ func (r *Repository) CreateOrGetIdempotent(
 		INSERT INTO messages (
 			id, conversation_id, sender_id, client_message_id, body, reply_to_message_id, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, msgUUID, p.ConversationID, p.Sender.ID, p.ClientMessageID, bodyCopy, p.ReplyToMessageID, now)
+	`, msgUUID, p.ConversationID, p.Sender.ID, p.ClientMessageID, bodyCopy, dbReplyToID, now)
 	if err != nil {
 		return nil, nil, false, err
 	}
+
+	// Un-hide conversation for all members when a new message arrives
+	_, _ = tx.Exec(ctx, `
+		UPDATE conversation_members SET hidden_at = NULL WHERE conversation_id = $1
+	`, p.ConversationID)
 
 	for _, att := range attachments {
 		_, err = tx.Exec(ctx, `
@@ -429,7 +449,7 @@ func (r *Repository) EditMessage(ctx context.Context, messageID, userID, newBody
 	return &m, env, nil
 }
 
-func (r *Repository) DeleteMessage(ctx context.Context, messageID, userID string) (*realtime.Envelope, error) {
+func (r *Repository) DeleteMessage(ctx context.Context, messageID, userID, scope, conversationIDHint string) (*realtime.Envelope, error) {
 	if _, err := uuid.Parse(messageID); err != nil {
 		return nil, ErrMessageNotFound
 	}
@@ -451,6 +471,27 @@ func (r *Repository) DeleteMessage(ctx context.Context, messageID, userID string
 		FOR UPDATE
 	`, messageID).Scan(&convID, &senderID, &deletedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
+		if scope == "me" {
+			return nil, nil
+		}
+		if conversationIDHint != "" {
+			if _, parseErr := uuid.Parse(conversationIDHint); parseErr == nil {
+				var isMember bool
+				if mErr := tx.QueryRow(ctx, `
+					SELECT EXISTS(SELECT 1 FROM conversation_members WHERE conversation_id = $1 AND user_id = $2)
+				`, conversationIDHint, userID).Scan(&isMember); mErr == nil && isMember {
+					now := time.Now().UTC()
+					env, eErr := realtime.AppendDurableEvent(ctx, tx, conversationIDHint, "message.deleted", map[string]any{
+						"messageId":  messageID,
+						"deletedAt":  now.Format(time.RFC3339Nano),
+						"hardDelete": true,
+					})
+					if eErr == nil && tx.Commit(ctx) == nil {
+						return env, nil
+					}
+				}
+			}
+		}
 		return nil, ErrMessageNotFound
 	}
 	if err != nil {
@@ -464,20 +505,26 @@ func (r *Repository) DeleteMessage(ctx context.Context, messageID, userID string
 		return nil, ErrMessageNotFound
 	}
 
+	if scope == "me" {
+		_, err = tx.Exec(ctx, `
+			INSERT INTO message_hidden_for (message_id, user_id, hidden_at)
+			VALUES ($1, $2, NOW())
+			ON CONFLICT (message_id, user_id) DO NOTHING
+		`, messageID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	if senderID != userID {
 		return nil, ErrForbiddenAuthor
 	}
 
-	now := time.Now().UTC()
-	_, err = tx.Exec(ctx, `
-		UPDATE messages
-		SET body = NULL, deleted_at = $2
-		WHERE id = $1
-	`, messageID, now)
-	if err != nil {
-		return nil, err
-	}
-
+	// Hard delete attachments and message from the database
 	_, err = tx.Exec(ctx, `
 		DELETE FROM attachments WHERE message_id = $1
 	`, messageID)
@@ -485,9 +532,18 @@ func (r *Repository) DeleteMessage(ctx context.Context, messageID, userID string
 		return nil, err
 	}
 
+	_, err = tx.Exec(ctx, `
+		DELETE FROM messages WHERE id = $1
+	`, messageID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
 	env, err := realtime.AppendDurableEvent(ctx, tx, convID, "message.deleted", map[string]any{
-		"messageId": messageID,
-		"deletedAt": now.Format(time.RFC3339Nano),
+		"messageId":  messageID,
+		"deletedAt":  now.Format(time.RFC3339Nano),
+		"hardDelete": true,
 	})
 	if err != nil {
 		return nil, err
@@ -517,6 +573,7 @@ func (r *Repository) RecordDeliveryAck(ctx context.Context, userID, messageID st
 		SELECT conversation_id::text, sender_id::text
 		FROM messages
 		WHERE id = $1
+		FOR UPDATE
 	`, messageID).Scan(&convID, &senderID)
 	if err != nil {
 		return nil, err
@@ -532,6 +589,31 @@ func (r *Repository) RecordDeliveryAck(ctx context.Context, userID, messageID st
 	`, convID, userID, messageID)
 	if err != nil || tag.RowsAffected() == 0 {
 		return nil, err
+	}
+
+	_, _ = tx.Exec(ctx, `
+		INSERT INTO message_deliveries (message_id, user_id, delivered_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (message_id, user_id) DO NOTHING
+	`, messageID, userID)
+
+	var totalRecipients, deliveredRecipients int
+	_ = tx.QueryRow(ctx, `
+		SELECT
+			(SELECT COUNT(*) FROM conversation_members WHERE conversation_id = $1 AND user_id <> $2),
+			(SELECT COUNT(*) FROM message_deliveries WHERE message_id = $3)
+	`, convID, senderID, messageID).Scan(&totalRecipients, &deliveredRecipients)
+
+	// Signal ephemeral queue: once all recipients have received the message, purge it from PostgreSQL
+	if totalRecipients > 0 && deliveredRecipients >= totalRecipients {
+		_, _ = tx.Exec(ctx, `DELETE FROM attachments WHERE message_id = $1`, messageID)
+		_, _ = tx.Exec(ctx, `DELETE FROM messages WHERE id = $1`, messageID)
+		_, _ = tx.Exec(ctx, `
+			DELETE FROM events
+			WHERE conversation_id = $1
+			  AND type = 'message.created'
+			  AND payload->'message'->>'id' = $2
+		`, convID, messageID)
 	}
 
 	now := time.Now().UTC()

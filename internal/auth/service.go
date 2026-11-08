@@ -200,6 +200,10 @@ func (s *Service) ListAccountRequests(ctx context.Context) ([]users.AccountReque
 	return s.usersService.ListAccountRequests(ctx)
 }
 
+func (s *Service) UpdatePublicKey(ctx context.Context, userID, publicKey string) error {
+	return s.usersService.UpdatePublicKey(ctx, userID, publicKey)
+}
+
 func (s *Service) StartSessionCleanupWorker(ctx context.Context) {
 	ticker := time.NewTicker(30 * time.Minute)
 	go func() {

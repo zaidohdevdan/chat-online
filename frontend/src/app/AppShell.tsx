@@ -18,6 +18,7 @@ import {
   useConversationDetail,
   useConversations,
   useCreateConversation,
+  useDeleteConversation,
   useMarkConversationRead,
 } from '../features/conversations/hooks/useConversations';
 import type { CreateConversationRequest } from '../features/conversations/types';
@@ -53,6 +54,7 @@ export function AppShell() {
   const [replyToMessage, setReplyToMessage] = useState<ClientMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<ClientMessage | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<ClientMessage | null>(null);
+  const [confirmDeleteConvOpen, setConfirmDeleteConvOpen] = useState(false);
 
   const lastMarkedReadRef = useRef<Record<string, string>>({});
 
@@ -85,6 +87,7 @@ export function AppShell() {
 
   const createConvMutation = useCreateConversation();
   const markReadMutation = useMarkConversationRead();
+  const deleteConvMutation = useDeleteConversation(user?.id);
 
   const { getPresence, getTypingUserIds } = usePresenceAndTyping(
     realtimeClient,
@@ -142,11 +145,23 @@ export function AppShell() {
     [conversationId, markReadMutation],
   );
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (scope: 'me' | 'all' = 'all') => {
     if (!messageToDelete) return;
     try {
-      await deleteMessage(messageToDelete.id);
+      await deleteMessage({ messageId: messageToDelete.id, scope });
       setMessageToDelete(null);
+    } catch {
+      pushToast(ptBR.common.errorGeneric, 'error');
+    }
+  };
+
+  const handleConfirmDeleteConversation = async () => {
+    if (!activeConversation) return;
+    try {
+      await deleteConvMutation.mutateAsync(activeConversation.id);
+      setConfirmDeleteConvOpen(false);
+      setDetailsOpen(false);
+      navigate('/');
     } catch {
       pushToast(ptBR.common.errorGeneric, 'error');
     }
@@ -235,6 +250,7 @@ export function AppShell() {
                   detailsOpen={detailsOpen}
                   onBackToList={handleBackToList}
                   onToggleDetails={() => setDetailsOpen((prev) => !prev)}
+                  onRequestDeleteConversation={() => setConfirmDeleteConvOpen(true)}
                   getPresence={getPresence}
                 />
 
@@ -297,6 +313,7 @@ export function AppShell() {
             messages={messages}
             isMobile={isMobile}
             onClose={() => setDetailsOpen(false)}
+            onRequestDeleteConversation={() => setConfirmDeleteConvOpen(true)}
             getPresence={getPresence}
           />
         )}
@@ -326,12 +343,55 @@ export function AppShell() {
         open={Boolean(messageToDelete)}
         title={ptBR.message.deleteConfirmTitle}
         description={ptBR.message.deleteConfirmBody}
-        confirmLabel={ptBR.message.deleteConfirmButton}
+        confirmLabel={
+          messageToDelete?.sender.id === user.id
+            ? ptBR.message.deleteConfirmButton
+            : ptBR.message.deleteForMeButton
+        }
+        secondaryLabel={
+          messageToDelete?.sender.id === user.id
+            ? ptBR.message.deleteForMeButton
+            : undefined
+        }
         danger
         isLoading={isDeleting}
         onCancel={() => setMessageToDelete(null)}
+        onSecondaryAction={
+          messageToDelete?.sender.id === user.id
+            ? () => {
+                void handleConfirmDelete('me');
+              }
+            : undefined
+        }
         onConfirm={() => {
-          void handleConfirmDelete();
+          void handleConfirmDelete(
+            messageToDelete?.sender.id === user.id ? 'all' : 'me',
+          );
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteConvOpen && Boolean(activeConversation)}
+        title={
+          activeConversation?.type === 'group'
+            ? ptBR.chat.deleteConversationGroupTitle
+            : ptBR.chat.deleteConversationDirectTitle
+        }
+        description={
+          activeConversation?.type === 'group'
+            ? ptBR.chat.deleteConversationGroupBody
+            : ptBR.chat.deleteConversationDirectBody
+        }
+        confirmLabel={
+          activeConversation?.type === 'group'
+            ? ptBR.chat.deleteConversationGroupButton
+            : ptBR.chat.deleteConversationDirectButton
+        }
+        danger
+        isLoading={deleteConvMutation.isPending}
+        onCancel={() => setConfirmDeleteConvOpen(false)}
+        onConfirm={() => {
+          void handleConfirmDeleteConversation();
         }}
       />
     </div>

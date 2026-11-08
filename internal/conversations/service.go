@@ -113,3 +113,14 @@ func (s *Service) MarkRead(ctx context.Context, conversationID, userID, lastRead
 	return nil
 }
 
+func (s *Service) Delete(ctx context.Context, conversationID, userID string) error {
+	env, memberIDs, err := s.repo.DeleteConversation(ctx, conversationID, userID)
+	if err != nil {
+		return err
+	}
+	if env != nil && len(memberIDs) > 0 && s.publisher != nil {
+		s.publisher.PublishToUsers(memberIDs, *env)
+	}
+	return nil
+}
+

@@ -168,7 +168,16 @@ describe('Fluxo principal do Chat (Autenticação, Envio Otimista, Reenvio Idemp
         };
       }
 
-      if (url.endsWith('/api/v1/messages/msg-canonical-1') && method === 'DELETE') {
+      if (url.includes('/api/v1/messages/msg-canonical-1') && method === 'DELETE') {
+        return {
+          ok: true,
+          status: 204,
+          headers: new Headers(),
+          json: async () => null,
+        };
+      }
+
+      if (url.endsWith('/api/v1/me/keys') && method === 'PUT') {
         return {
           ok: true,
           status: 204,
@@ -228,7 +237,7 @@ describe('Fluxo principal do Chat (Autenticação, Envio Otimista, Reenvio Idemp
 
     await user.click(screen.getByRole('button', { name: 'Apagar mensagem' }));
     await waitFor(() => {
-      expect(screen.getByText('Mensagem apagada')).toBeInTheDocument();
+      expect(screen.queryByText('Olá Carlos, tudo bem?')).not.toBeInTheDocument();
     });
   });
 

@@ -6,15 +6,39 @@ import {
   useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query';
+import { decryptMessageBody, isEncryptedPayload } from '../../../lib/e2ee';
 import type { Page } from '../../../lib/http';
 import type { RealtimeClient, ServerEventMap } from '../../../lib/realtime';
 import {
+  clearLocalConversationHistory,
+  loadLocalMessages,
+} from '../../messages/storage/localHistory';
+import {
   createConversation,
+  deleteConversation,
   getConversation,
   listConversations,
   markConversationRead,
 } from '../api';
 import type { Conversation, CreateConversationRequest } from '../types';
+
+async function hydrateConversationE2EE(
+  conv: Conversation,
+  currentUserId?: string,
+): Promise<Conversation> {
+  let lastMessage = conv.lastMessage;
+  if (lastMessage?.body && isEncryptedPayload(lastMessage.body)) {
+    const plain = await decryptMessageBody(lastMessage.body, conv.id, currentUserId);
+    lastMessage = { ...lastMessage, body: plain };
+  }
+  if (!lastMessage && currentUserId) {
+    const localList = loadLocalMessages(currentUserId, conv.id);
+    if (localList.length > 0 && localList[0]) {
+      lastMessage = localList[0];
+    }
+  }
+  return { ...conv, lastMessage };
+}
 
 export const CONVERSATIONS_QUERY_KEY = ['conversations'] as const;
 export const conversationDetailKey = (id: string) => ['conversations', id] as const;
@@ -27,8 +51,13 @@ export function useConversations(
 
   const query = useInfiniteQuery({
     queryKey: CONVERSATIONS_QUERY_KEY,
-    queryFn: ({ pageParam, signal }) =>
-      listConversations({ cursor: pageParam, limit: 30, signal }),
+    queryFn: async ({ pageParam, signal }) => {
+      const page = await listConversations({ cursor: pageParam, limit: 30, signal });
+      const hydrated = await Promise.all(
+        page.data.map((c) => hydrateConversationE2EE(c, currentUserId)),
+      );
+      return { ...page, data: hydrated };
+    },
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: Boolean(currentUserId),
@@ -131,7 +160,33 @@ export function useConversations(
       if (envelope.type === 'conversation.updated') {
         const data = envelope.data as ServerEventMap['conversation.updated'];
         if (data?.conversation) {
-          upsertConversationInCache(data.conversation);
+          void hydrateConversationE2EE(data.conversation, currentUserId).then((c) => {
+            upsertConversationInCache(c);
+          });
+        }
+        return;
+      }
+
+      if (envelope.type === 'conversation.deleted') {
+        const data = envelope.data as ServerEventMap['conversation.deleted'];
+        if (data?.conversationId) {
+          clearLocalConversationHistory(currentUserId, data.conversationId);
+          queryClient.setQueryData<InfiniteData<Page<Conversation>>>(
+            CONVERSATIONS_QUERY_KEY,
+            (old) => {
+              if (!old) return old;
+              return {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  data: page.data.filter((c) => c.id !== data.conversationId),
+                })),
+              };
+            },
+          );
+          queryClient.removeQueries({
+            queryKey: conversationDetailKey(data.conversationId),
+          });
         }
         return;
       }
@@ -141,12 +196,17 @@ export function useConversations(
         const msg = data?.message;
         if (!msg) return;
         const isFromMe = msg.sender.id === currentUserId;
-        updateConversationInCache(msg.conversationId, (conv) => ({
-          ...conv,
-          lastMessage: msg,
-          updatedAt: msg.createdAt,
-          unreadCount: isFromMe ? conv.unreadCount : conv.unreadCount + 1,
-        }));
+        void decryptMessageBody(msg.body, msg.conversationId, currentUserId).then(
+          (plainBody) => {
+            const decryptedMsg = { ...msg, body: plainBody };
+            updateConversationInCache(msg.conversationId, (conv) => ({
+              ...conv,
+              lastMessage: decryptedMsg,
+              updatedAt: msg.createdAt,
+              unreadCount: isFromMe ? conv.unreadCount : conv.unreadCount + 1,
+            }));
+          },
+        );
         return;
       }
 
@@ -154,27 +214,32 @@ export function useConversations(
         const data = envelope.data as ServerEventMap['message.updated'];
         const msg = data?.message;
         if (!msg) return;
-        updateConversationInCache(msg.conversationId, (conv) =>
-          conv.lastMessage?.id === msg.id ? { ...conv, lastMessage: msg } : conv,
+        void decryptMessageBody(msg.body, msg.conversationId, currentUserId).then(
+          (plainBody) => {
+            const decryptedMsg = { ...msg, body: plainBody };
+            updateConversationInCache(msg.conversationId, (conv) =>
+              conv.lastMessage?.id === msg.id
+                ? { ...conv, lastMessage: decryptedMsg }
+                : conv,
+            );
+          },
         );
         return;
       }
 
       if (envelope.type === 'message.deleted' && envelope.conversationId) {
         const data = envelope.data as ServerEventMap['message.deleted'];
-        updateConversationInCache(envelope.conversationId, (conv) =>
-          conv.lastMessage?.id === data.messageId
-            ? {
-                ...conv,
-                lastMessage: {
-                  ...conv.lastMessage,
-                  body: null,
-                  attachments: [],
-                  deletedAt: data.deletedAt,
-                },
-              }
-            : conv,
-        );
+        const convId = envelope.conversationId;
+        updateConversationInCache(convId, (conv) => {
+          if (conv.lastMessage?.id !== data.messageId) return conv;
+          const remaining = loadLocalMessages(currentUserId, convId).filter(
+            (m) => m.id !== data.messageId,
+          );
+          return {
+            ...conv,
+            lastMessage: remaining[0] ?? undefined,
+          };
+        });
         return;
       }
 
@@ -293,6 +358,35 @@ export function useMarkConversationRead() {
         conversationDetailKey(conversationId),
         (old) => (old ? { ...old, unreadCount: 0, lastReadMessageId } : old),
       );
+    },
+  });
+}
+
+export function useDeleteConversation(currentUserId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (conversationId: string) => deleteConversation(conversationId),
+    onSuccess: (_, conversationId) => {
+      if (currentUserId) {
+        clearLocalConversationHistory(currentUserId, conversationId);
+      }
+      queryClient.setQueryData<InfiniteData<Page<Conversation>>>(
+        CONVERSATIONS_QUERY_KEY,
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              data: page.data.filter((c) => c.id !== conversationId),
+            })),
+          };
+        },
+      );
+      queryClient.removeQueries({
+        queryKey: conversationDetailKey(conversationId),
+      });
     },
   });
 }

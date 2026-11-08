@@ -294,88 +294,49 @@
 .footer {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  padding: 0;
-  padding-bottom: max(0px, env(safe-area-inset-bottom));
-  border-top: 0.5px solid var(--color-border);
-  background-color: var(--material-bar);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-3);
+  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background-color: var(--material-thick);
   backdrop-filter: var(--material-blur);
   -webkit-backdrop-filter: var(--material-blur);
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-}
-
-/* Single compact row: avatar + name/handle + status badge + action icons */
-.footerTop {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  min-width: 0;
-  flex: 1;
-}
-
-/* Push action buttons to the far right inside footerTop */
-.footerTopSpacer {
-  flex: 1;
-  min-width: 0;
-}
-
-.footerActions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
   flex-shrink: 0;
 }
 
-.footerIconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: var(--radius-pill);
-  background-color: transparent;
-  color: var(--color-text-muted);
-  font-size: 15px;
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast) var(--motion-ease),
-    color var(--motion-fast) var(--motion-ease);
-}
-
-.footerIconBtn:hover {
-  background-color: var(--color-fill);
-  color: var(--color-text);
-}
-
-.footerIconBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.userSummary {
+.userCard {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
-  min-width: 0;
-  flex: 1;
+  width: 100%;
 }
 
-.userName {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.userProfile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1;
 }
 
 .userStack {
   display: flex;
   flex-direction: column;
+  gap: 1px;
   min-width: 0;
+}
+
+.userName {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .userHandle {
@@ -384,6 +345,77 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.footerIconBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-fill);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+.footerIconBtn:hover {
+  background-color: var(--color-fill-strong);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+  transform: scale(1.05);
+}
+
+.footerIconBtn:active {
+  transform: scale(0.95);
+}
+
+.footerIconBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.logoutBtn:hover {
+  background-color: var(--color-danger-subtle);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.badgeDot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-accent);
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.statusRow > button {
+  width: 100%;
+  justify-content: center;
 }
 
 @media (max-width: 768px) {

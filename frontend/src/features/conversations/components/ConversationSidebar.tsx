@@ -287,12 +287,13 @@ export function ConversationSidebar({
       )}
 
       <div className={styles.footer}>
-        <div className={styles.footerTop}>
-          <div className={styles.userSummary}>
+        <div className={styles.userCard}>
+          <div className={styles.userProfile}>
             <Avatar
               name={currentUser.displayName}
               avatarUrl={currentUser.avatarUrl}
-              size="sm"
+              size="md"
+              presence={connectionState === 'connected' ? 'online' : 'offline'}
             />
             <div className={styles.userStack}>
               <span className={styles.userName}>{currentUser.displayName}</span>
@@ -300,8 +301,8 @@ export function ConversationSidebar({
                 <span className={styles.userHandle}>@{currentUser.username}</span>
               )}
             </div>
-            <BackendStatusBadge realtimeState={connectionState} />
           </div>
+
           <div className={styles.footerActions}>
             {currentUser.isAdmin && onOpenAdminPanel && (
               <button
@@ -311,7 +312,21 @@ export function ConversationSidebar({
                 title={ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
                 aria-label={ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
               >
-                {pendingAdminRequestsCount > 0 ? '🔔' : '⚙'}
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {pendingAdminRequestsCount > 0 && <span className={styles.badgeDot} />}
               </button>
             )}
             <button
@@ -321,19 +336,50 @@ export function ConversationSidebar({
               title={ptBR.auth.changePasswordButton}
               aria-label={ptBR.auth.changePasswordButton}
             >
-              🔑
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
             </button>
             <button
               type="button"
-              className={styles.footerIconBtn}
+              className={`${styles.footerIconBtn} ${styles.logoutBtn}`}
               onClick={onLogout}
               disabled={isLoggingOut}
               title={ptBR.auth.logout}
               aria-label={ptBR.auth.logout}
             >
-              {isLoggingOut ? '…' : '⇥'}
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
             </button>
           </div>
+        </div>
+
+        <div className={styles.statusRow}>
+          <BackendStatusBadge realtimeState={connectionState} />
         </div>
       </div>
     </aside>

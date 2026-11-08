@@ -18,38 +18,36 @@
 
 .header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4) var(--space-2);
-  padding-top: max(var(--space-3), env(safe-area-inset-top));
-  min-height: var(--header-height);
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  padding-top: max(var(--space-4), env(safe-area-inset-top));
 }
 
 .identity {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex: 1;
   min-width: 0;
-  overflow: hidden;
 }
 
 .appTitle {
   margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  letter-spacing: -0.022em;
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  letter-spacing: -0.025em;
   line-height: var(--line-height-tight);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  user-select: none;
+  text-transform: capitalize;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 

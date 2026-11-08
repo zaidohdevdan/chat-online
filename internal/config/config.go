@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -26,6 +27,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	loadDotEnvIfPresent(".env")
 	env := getEnv("APP_ENV", "development")
 
 	// Default listen address is strictly 127.0.0.1:8080 (never 0.0.0.0 in dev/test).
@@ -141,4 +143,32 @@ func getEnv(key, fallback string) string {
 		return val
 	}
 	return fallback
+}
+
+func loadDotEnvIfPresent(filename string) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
+		val = strings.Trim(val, `"'`)
+		if key != "" && os.Getenv(key) == "" {
+			_ = os.Setenv(key, val)
+		}
+	}
 }

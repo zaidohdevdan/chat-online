@@ -55,7 +55,8 @@ func (r *Repository) Create(ctx context.Context, username, displayName, password
 		INSERT INTO users (id, username, display_name, avatar_url, password_hash, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (username) DO UPDATE
-		SET display_name = EXCLUDED.display_name
+		SET display_name = EXCLUDED.display_name,
+		    password_hash = EXCLUDED.password_hash
 		RETURNING id::text, username, display_name, avatar_url, password_hash, created_at
 	`, id, normalized, displayName, avatarURL, passwordHash, now).Scan(
 		&rec.ID,

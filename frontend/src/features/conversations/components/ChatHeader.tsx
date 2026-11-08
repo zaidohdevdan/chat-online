@@ -1,5 +1,7 @@
 import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
+import { ThemeToggle } from '../../../components/ui/ThemeToggle';
+import type { ThemePreference } from '../../../hooks/useTheme';
 import { formatMessageTime } from '../../../lib/format';
 import { ptBR } from '../../../lib/i18n';
 import type { UserPresence } from '../../presence/types';
@@ -12,6 +14,8 @@ export interface ChatHeaderProps {
   currentUserId: string;
   isMobile: boolean;
   detailsOpen: boolean;
+  theme: ThemePreference;
+  onCycleTheme: () => void;
   onBackToList: () => void;
   onToggleDetails: () => void;
   onRequestDeleteConversation: () => void;
@@ -23,6 +27,8 @@ export function ChatHeader({
   currentUserId,
   isMobile,
   detailsOpen,
+  theme,
+  onCycleTheme,
   onBackToList,
   onToggleDetails,
   onRequestDeleteConversation,
@@ -83,6 +89,7 @@ export function ChatHeader({
       </div>
 
       <div className={styles.actions}>
+        <ThemeToggle theme={theme} onCycleTheme={onCycleTheme} />
         <Button
           variant="ghost"
           size="sm"

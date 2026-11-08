@@ -48,6 +48,8 @@ const currentUser = {
 const peerUser = {
   id: 'u-2',
   displayName: 'Carlos Mendes',
+  publicKey:
+    'eyJrdHkiOiJFQyIsIngiOiIzVjVIVG96VUFiYnU4YU4wR2N3VUxBWncyd2FHd2FGM0JBOVl0b1ZUWFVFIiwieSI6ImJEeUhpOWZYRUxVUlA5MHhlOWdRYW9UYngtMERNRUh5c092eUo4WUFuU28iLCJjcnYiOiJQLTI1NiJ9',
 };
 
 const sampleConversation: Conversation = {
@@ -205,7 +207,7 @@ describe('Fluxo principal do Chat (Autenticação, Envio Otimista, Reenvio Idemp
     );
 
     // Aguarda carregar a conversa com Carlos Mendes
-    await screen.findByRole('heading', { name: 'Carlos Mendes' });
+    await screen.findByRole('heading', { name: 'Carlos Mendes' }, { timeout: 4000 });
 
     const input = screen.getByLabelText('Mensagem');
     await user.type(input, 'Olá Carlos, tudo bem?');

@@ -53,36 +53,6 @@
   flex-shrink: 0;
 }
 
-.themeBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  background-color: var(--color-fill);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition:
-    background-color var(--motion-fast) var(--motion-ease),
-    border-color var(--motion-fast) var(--motion-ease),
-    color var(--motion-fast) var(--motion-ease),
-    transform var(--motion-fast) var(--motion-ease);
-}
-
-.themeBtn:hover {
-  background-color: var(--color-fill-strong);
-  border-color: var(--color-border-strong);
-  color: var(--color-text);
-  transform: scale(1.05);
-}
-
-.themeBtn:active {
-  transform: scale(0.95);
-}
-
 .newConvBtn {
   display: inline-flex;
   align-items: center;

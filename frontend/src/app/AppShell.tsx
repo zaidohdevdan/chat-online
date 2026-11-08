@@ -249,6 +249,8 @@ export function AppShell() {
                   currentUserId={user.id}
                   isMobile={isMobile}
                   detailsOpen={detailsOpen}
+                  theme={theme}
+                  onCycleTheme={cycleTheme}
                   onBackToList={handleBackToList}
                   onToggleDetails={() => setDetailsOpen((prev) => !prev)}
                   onRequestDeleteConversation={() => setConfirmDeleteConvOpen(true)}

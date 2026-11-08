@@ -234,3 +234,17 @@
   text-overflow: ellipsis;
 }
 
+.userStack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.userHandle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

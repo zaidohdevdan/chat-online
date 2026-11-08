@@ -11,16 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrUserNotFound = errors.New("user not found")
+var (
+	ErrUserNotFound  = errors.New("user not found")
+	ErrCannotAddSelf = errors.New("cannot add self as contact")
+)
 
 type UserSummary struct {
 	ID          string  `json:"id"`
+	Username    string  `json:"username,omitempty"`
 	DisplayName string  `json:"displayName"`
 	AvatarURL   *string `json:"avatarUrl,omitempty"`
 }
 
 type User struct {
 	ID          string    `json:"id"`
+	Username    string    `json:"username,omitempty"`
 	DisplayName string    `json:"displayName"`
 	AvatarURL   *string   `json:"avatarUrl,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -69,6 +74,7 @@ func (r *Repository) Create(ctx context.Context, username, displayName, password
 	if err != nil {
 		return nil, err
 	}
+	rec.User.Username = rec.Username
 	return &rec, nil
 }
 
@@ -78,10 +84,10 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
 	}
 	var u User
 	err := r.pool.QueryRow(ctx, `
-		SELECT id::text, display_name, avatar_url, created_at
+		SELECT id::text, username, display_name, avatar_url, created_at
 		FROM users
 		WHERE id = $1
-	`, id).Scan(&u.ID, &u.DisplayName, &u.AvatarURL, &u.CreatedAt)
+	`, id).Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
@@ -96,7 +102,7 @@ func (r *Repository) GetByIDs(ctx context.Context, ids []string) ([]UserSummary,
 		return nil, nil
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT id::text, display_name, avatar_url
+		SELECT id::text, username, display_name, avatar_url
 		FROM users
 		WHERE id::text = ANY($1)
 		ORDER BY display_name ASC
@@ -109,7 +115,7 @@ func (r *Repository) GetByIDs(ctx context.Context, ids []string) ([]UserSummary,
 	var result []UserSummary
 	for rows.Next() {
 		var u UserSummary
-		if err := rows.Scan(&u.ID, &u.DisplayName, &u.AvatarURL); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL); err != nil {
 			return nil, err
 		}
 		result = append(result, u)
@@ -118,7 +124,7 @@ func (r *Repository) GetByIDs(ctx context.Context, ids []string) ([]UserSummary,
 }
 
 func (r *Repository) GetByUsername(ctx context.Context, username string) (*UserRecord, error) {
-	normalized := strings.ToLower(strings.TrimSpace(username))
+	normalized := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
 	var rec UserRecord
 	err := r.pool.QueryRow(ctx, `
 		SELECT id::text, username, display_name, avatar_url, password_hash, created_at
@@ -138,22 +144,51 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (*UserR
 	if err != nil {
 		return nil, err
 	}
+	rec.User.Username = rec.Username
 	return &rec, nil
 }
 
-func (r *Repository) Search(ctx context.Context, query string, limit int) ([]UserSummary, error) {
+func (r *Repository) AddContactByUsername(ctx context.Context, ownerID, username string) (*UserSummary, bool, error) {
+	target, err := r.GetByUsername(ctx, username)
+	if err != nil {
+		return nil, false, err
+	}
+	if target.ID == ownerID {
+		return nil, false, ErrCannotAddSelf
+	}
+
+	tag, err := r.pool.Exec(ctx, `
+		INSERT INTO user_contacts (owner_id, contact_id, created_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (owner_id, contact_id) DO NOTHING
+	`, ownerID, target.ID)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return &UserSummary{
+		ID:          target.ID,
+		Username:    target.Username,
+		DisplayName: target.DisplayName,
+		AvatarURL:   target.AvatarURL,
+	}, tag.RowsAffected() > 0, nil
+}
+
+func (r *Repository) SearchContacts(ctx context.Context, ownerID, query string, limit int) ([]UserSummary, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 30
 	}
 	pattern := "%" + strings.ToLower(strings.TrimSpace(query)) + "%"
 
 	rows, err := r.pool.Query(ctx, `
-		SELECT id::text, display_name, avatar_url
-		FROM users
-		WHERE LOWER(display_name) LIKE $1 OR LOWER(username) LIKE $1
-		ORDER BY display_name ASC, id ASC
-		LIMIT $2
-	`, pattern, limit)
+		SELECT u.id::text, u.username, u.display_name, u.avatar_url
+		FROM user_contacts uc
+		JOIN users u ON u.id = uc.contact_id
+		WHERE uc.owner_id = $1
+		  AND (LOWER(u.display_name) LIKE $2 OR LOWER(u.username) LIKE $2)
+		ORDER BY u.display_name ASC, u.id ASC
+		LIMIT $3
+	`, ownerID, pattern, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +197,7 @@ func (r *Repository) Search(ctx context.Context, query string, limit int) ([]Use
 	result := make([]UserSummary, 0)
 	for rows.Next() {
 		var u UserSummary
-		if err := rows.Scan(&u.ID, &u.DisplayName, &u.AvatarURL); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL); err != nil {
 			return nil, err
 		}
 		result = append(result, u)

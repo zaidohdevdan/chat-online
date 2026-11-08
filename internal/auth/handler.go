@@ -16,6 +16,9 @@ type ctxKey string
 const sessionContextKey ctxKey = "auth_session"
 
 func WithSession(ctx context.Context, sess *AuthenticatedSession) context.Context {
+	if sess != nil {
+		ctx = httpx.WithUserID(ctx, sess.User.ID)
+	}
 	return context.WithValue(ctx, sessionContextKey, sess)
 }
 

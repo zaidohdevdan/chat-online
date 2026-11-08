@@ -1,5 +1,6 @@
 export type UserSummary = {
   id: string;
+  username?: string;
   displayName: string;
   avatarUrl?: string;
 };

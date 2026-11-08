@@ -11,6 +11,7 @@ function normalizeSessionPayload(raw: AuthSessionResponse | (User & { csrfToken:
   const rawUser = raw as User & { csrfToken: string };
   return {
     id: rawUser.id,
+    username: rawUser.username,
     displayName: rawUser.displayName,
     avatarUrl: rawUser.avatarUrl,
     createdAt: rawUser.createdAt,
@@ -73,4 +74,11 @@ export async function searchUsers(
     return res;
   }
   return res.data ?? [];
+}
+
+export async function addContactByUsername(username: string): Promise<UserSummary> {
+  return apiRequest<UserSummary>('/users/contacts', {
+    method: 'POST',
+    body: { username: username.trim().replace(/^@/, '') },
+  });
 }

@@ -1,9 +1,11 @@
 package users
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"chat-online/internal/httpx"
 
@@ -33,6 +35,12 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
+	ownerID, ok := httpx.GetUserID(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+
 	query := r.URL.Query().Get("query")
 	limit := 30
 	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
@@ -41,9 +49,9 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	list, err := h.service.Search(r.Context(), query, limit)
+	list, err := h.service.SearchContacts(r.Context(), ownerID, query, limit)
 	if err != nil {
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao buscar usuários")
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao buscar contatos")
 		return
 	}
 
@@ -53,3 +61,47 @@ func (h *Handler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type addContactRequest struct {
+	Username string `json:"username"`
+}
+
+func (h *Handler) AddContact(w http.ResponseWriter, r *http.Request) {
+	ownerID, ok := httpx.GetUserID(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+
+	var req addContactRequest
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	if err := dec.Decode(&req); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "BAD_REQUEST", "JSON inválido")
+		return
+	}
+
+	cleaned := strings.TrimPrefix(strings.TrimSpace(req.Username), "@")
+	if cleaned == "" {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Informe o username do contato")
+		return
+	}
+
+	contact, created, err := h.service.AddContactByUsername(r.Context(), ownerID, cleaned)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			httpx.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "Nenhum usuário encontrado com esse username")
+			return
+		}
+		if errors.Is(err, ErrCannotAddSelf) {
+			httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Você não pode adicionar seu próprio username como contato")
+			return
+		}
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao vincular contato")
+		return
+	}
+
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	httpx.WriteJSON(w, status, contact)
+}

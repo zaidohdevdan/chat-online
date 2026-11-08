@@ -284,7 +284,12 @@ export function ConversationSidebar({
             avatarUrl={currentUser.avatarUrl}
             size="sm"
           />
-          <span className={styles.userName}>{currentUser.displayName}</span>
+          <div className={styles.userStack}>
+            <span className={styles.userName}>{currentUser.displayName}</span>
+            {currentUser.username && (
+              <span className={styles.userHandle}>@{currentUser.username}</span>
+            )}
+          </div>
         </div>
         <div className={styles.headerActions}>
           <BackendStatusBadge realtimeState={connectionState} />

@@ -1,9 +1,10 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
+import { ApiError } from '../../../lib/http';
 import { ptBR } from '../../../lib/i18n';
-import { searchUsers } from '../../auth/api';
+import { addContactByUsername, searchUsers } from '../../auth/api';
 import type { UserSummary } from '../../auth/types';
 import type { ConversationType, CreateConversationRequest } from '../types';
 import styles from './NewConversationModal.module.css';
@@ -23,13 +24,17 @@ export function NewConversationModal({
   onClose,
   onCreate,
 }: NewConversationModalProps) {
+  const queryClient = useQueryClient();
   const [type, setType] = useState<ConversationType>('direct');
   const [title, setTitle] = useState('');
   const [query, setQuery] = useState('');
+  const [contactUsername, setContactUsername] = useState('');
+  const [contactFeedback, setContactFeedback] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<UserSummary[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const titleInputId = useId();
+  const addContactInputId = useId();
   const searchInputId = useId();
   const dialogTitleId = useId();
 
@@ -47,9 +52,30 @@ export function NewConversationModal({
 
   const usersQuery = useQuery({
     queryKey: ['users', 'search', query],
-    queryFn: ({ signal }) => searchUsers(query, 20, signal),
+    queryFn: ({ signal }) => searchUsers(query, 30, signal),
     enabled: open,
     staleTime: 10_000,
+  });
+
+  const addContactMutation = useMutation({
+    mutationFn: (usernameToLink: string) => addContactByUsername(usernameToLink),
+    onSuccess: (addedUser) => {
+      setContactUsername('');
+      setValidationError(null);
+      setContactFeedback(ptBR.newConversation.addContactSuccess(addedUser.displayName));
+      void queryClient.invalidateQueries({ queryKey: ['users', 'search'] });
+      handleToggleUser(addedUser);
+    },
+    onError: (err) => {
+      setContactFeedback(null);
+      if (err instanceof ApiError && err.status === 404) {
+        setValidationError(ptBR.newConversation.addContactNotFound);
+      } else if (err instanceof ApiError) {
+        setValidationError(err.message);
+      } else {
+        setValidationError(ptBR.common.errorGeneric);
+      }
+    },
   });
 
   if (!open) return null;
@@ -69,6 +95,12 @@ export function NewConversationModal({
           : [...prev, user],
       );
     }
+  };
+
+  const handleAddContact = () => {
+    const trimmed = contactUsername.trim().replace(/^@/, '');
+    if (!trimmed || addContactMutation.isPending) return;
+    addContactMutation.mutate(trimmed);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -146,6 +178,47 @@ export function NewConversationModal({
           )}
 
           <div className={styles.field}>
+            <label htmlFor={addContactInputId} className={styles.label}>
+              {ptBR.newConversation.addContactLabel}
+            </label>
+            <div className={styles.inlineRow}>
+              <input
+                id={addContactInputId}
+                type="text"
+                value={contactUsername}
+                onChange={(e) => {
+                  setContactUsername(e.target.value);
+                  setContactFeedback(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddContact();
+                  }
+                }}
+                placeholder={ptBR.newConversation.addContactPlaceholder}
+                className={styles.input}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleAddContact}
+                disabled={!contactUsername.trim() || addContactMutation.isPending}
+              >
+                {addContactMutation.isPending
+                  ? ptBR.newConversation.addingContactButton
+                  : ptBR.newConversation.addContactButton}
+              </Button>
+            </div>
+            {contactFeedback && (
+              <p role="status" className={styles.successText}>
+                {contactFeedback}
+              </p>
+            )}
+          </div>
+
+          <div className={styles.field}>
             <label htmlFor={searchInputId} className={styles.label}>
               {ptBR.newConversation.searchUsersLabel}
             </label>
@@ -195,7 +268,12 @@ export function NewConversationModal({
                   >
                     <span className={styles.userRow}>
                       <Avatar name={u.displayName} avatarUrl={u.avatarUrl} size="sm" />
-                      <span>{u.displayName}</span>
+                      <span className={styles.userInfoStack}>
+                        <span>{u.displayName}</span>
+                        {u.username && (
+                          <span className={styles.usernameSub}>@{u.username}</span>
+                        )}
+                      </span>
                     </span>
                     <span>+</span>
                   </button>
@@ -225,4 +303,3 @@ export function NewConversationModal({
     </div>
   );
 }
-

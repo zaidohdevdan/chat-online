@@ -28,7 +28,7 @@ Este documento é o contrato REST. Em caso de conflito com outros documentos, el
 ## 3. Schemas
 
 ```ts
-type UserSummary = { id: string; displayName: string; avatarUrl?: string };
+type UserSummary = { id: string; username?: string; displayName: string; avatarUrl?: string };
 
 type User = UserSummary & { createdAt: string };
 
@@ -73,12 +73,16 @@ Regras do `status`:
 - Os estados `sending` e `failed` existem apenas no cliente e nunca trafegam na API.
 - Detalhe por destinatário chega por eventos em tempo real (`events.md`).
 
-## 4. Usuários
+## 4. Usuários e Contatos
 
 | Método | Endpoint | Descrição |
 |---|---|---|
 | GET | `/users/{id}` | Perfil do usuário |
-| GET | `/users?query=&limit=` | Busca de usuários para iniciar conversas |
+| GET | `/users?query=&limit=` | Lista e busca apenas contatos vinculados ao usuário autenticado |
+| POST | `/users/contacts` | Vincula um contato à agenda do usuário autenticado pelo `username` exato |
+
+- Por privacidade, `GET /users` nunca expõe o diretório global de contas; retorna apenas contatos já vinculados ao usuário autenticado (ou com quem já compartilha conversa).
+- `POST /users/contacts` recebe `{ "username": "identificador" }` (case-insensitive, com ou sem `@`) e retorna o `UserSummary` vinculado (`201` quando novo vínculo, `200` quando já existente, `404` se não encontrado).
 
 ## 5. Conversas
 
@@ -206,3 +210,4 @@ Idempotência: a chave é `(usuário, conversa, clientMessageId)` com restriçã
 
 - Substituído `POST /messages/{id}/read` por `POST /conversations/{id}/read` (leitura por cursor).
 - Adicionados schemas, uploads, busca de usuários, CSRF, paginação detalhada e regras de idempotência.
+- Escopo de `GET /users` restrito aos contatos vinculados ao usuário autenticado e adicionado `POST /users/contacts` por `username` único.

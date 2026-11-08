@@ -28,8 +28,12 @@ func (s *Service) CreateUser(ctx context.Context, username, displayName, passwor
 	return s.repo.Create(ctx, username, displayName, passwordHash, avatarURL)
 }
 
-func (s *Service) Search(ctx context.Context, query string, limit int) ([]UserSummary, error) {
-	return s.repo.Search(ctx, query, limit)
+func (s *Service) SearchContacts(ctx context.Context, ownerID, query string, limit int) ([]UserSummary, error) {
+	return s.repo.SearchContacts(ctx, ownerID, query, limit)
+}
+
+func (s *Service) AddContactByUsername(ctx context.Context, ownerID, username string) (*UserSummary, bool, error) {
+	return s.repo.AddContactByUsername(ctx, ownerID, username)
 }
 
 func (s *Service) ExportUserData(ctx context.Context, userID string) (*LGPDExport, error) {

@@ -157,6 +157,19 @@ func (r *Repository) Create(
 		}
 	}
 
+	for _, u1 := range memberIDs {
+		for _, u2 := range memberIDs {
+			if u1 == u2 {
+				continue
+			}
+			_, _ = tx.Exec(ctx, `
+				INSERT INTO user_contacts (owner_id, contact_id, created_at)
+				VALUES ($1, $2, $3)
+				ON CONFLICT (owner_id, contact_id) DO NOTHING
+			`, u1, u2, now)
+		}
+	}
+
 	convStr := convID.String()
 	members, err := queryMembersTx(ctx, tx, convStr)
 	if err != nil {

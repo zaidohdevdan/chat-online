@@ -8,7 +8,10 @@ import (
 
 type ctxKey string
 
-const RequestIDKey ctxKey = "request_id"
+const (
+	RequestIDKey ctxKey = "request_id"
+	UserIDKey    ctxKey = "user_id"
+)
 
 func GetRequestID(ctx context.Context) string {
 	if v, ok := ctx.Value(RequestIDKey).(string); ok {
@@ -19,6 +22,15 @@ func GetRequestID(ctx context.Context) string {
 
 func WithRequestID(ctx context.Context, reqID string) context.Context {
 	return context.WithValue(ctx, RequestIDKey, reqID)
+}
+
+func GetUserID(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(UserIDKey).(string)
+	return v, ok && v != ""
+}
+
+func WithUserID(ctx context.Context, userID string) context.Context {
+	return context.WithValue(ctx, UserIDKey, userID)
 }
 
 type ErrorDetail struct {

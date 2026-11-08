@@ -50,7 +50,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *app.Application) {
 	}
 
 	// Clean test tables before running test suite
-	_, err = pool.Exec(ctx, `TRUNCATE events, attachments, messages, conversation_members, conversations, sessions, users CASCADE`)
+	_, err = pool.Exec(ctx, `TRUNCATE events, attachments, messages, conversation_members, conversations, user_contacts, sessions, users CASCADE`)
 	if err != nil {
 		pool.Close()
 		t.Fatalf("truncate tables: %v", err)
@@ -231,6 +231,32 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 	}, false)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 when CSRF header is missing, got %d", resp.StatusCode)
+	}
+
+	// 4.5 Private contacts isolation: Alice starts with 0 contacts, links Bob by @username, and never sees Eve
+	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/users?query=", nil, false)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on GET /api/v1/users, got %d", resp.StatusCode)
+	}
+	var initialContacts struct {
+		Data []map[string]any `json:"data"`
+	}
+	_ = json.Unmarshal(raw, &initialContacts)
+	if len(initialContacts.Data) != 0 {
+		t.Fatalf("expected 0 initial contacts for Alice, got %d", len(initialContacts.Data))
+	}
+
+	resp, raw = aliceClient.doJSON(http.MethodPost, "/api/v1/users/contacts", map[string]string{
+		"username": "@bob",
+	}, true)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 linking Bob by username, got %d: %s", resp.StatusCode, string(raw))
+	}
+
+	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/users?query=", nil, false)
+	_ = json.Unmarshal(raw, &initialContacts)
+	if len(initialContacts.Data) != 1 {
+		t.Fatalf("expected 1 contact (Bob) for Alice after linking, got %d", len(initialContacts.Data))
 	}
 
 	// 5. Direct conversation creation (201) and uniqueness on repeat (200)

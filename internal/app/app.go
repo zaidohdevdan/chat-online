@@ -150,6 +150,7 @@ func (a *Application) buildRouter(
 				csrfProtected.Post("/auth/logout", authHandler.Logout)
 
 				csrfProtected.Get("/users", usersHandler.SearchUsers)
+				csrfProtected.Post("/users/contacts", usersHandler.AddContact)
 				csrfProtected.Get("/users/{id}", usersHandler.GetUser)
 
 				csrfProtected.Get("/conversations", convHandler.List)

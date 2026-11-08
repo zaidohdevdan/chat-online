@@ -19,6 +19,7 @@ export interface ConversationSidebarProps {
   currentUser: User;
   conversations: Conversation[];
   selectedConversationId?: string;
+  showThemeToggle?: boolean;
   isLoading: boolean;
   isMobile: boolean;
   theme: ThemePreference;
@@ -39,6 +40,7 @@ export function ConversationSidebar({
   currentUser,
   conversations,
   selectedConversationId,
+  showThemeToggle = !selectedConversationId,
   isLoading,
   isMobile,
   theme,
@@ -128,7 +130,9 @@ export function ConversationSidebar({
           <h1 className={styles.appTitle}>{ptBR.app.title}</h1>
         </div>
         <div className={styles.headerActions}>
-          <ThemeToggle theme={theme} onCycleTheme={onCycleTheme} />
+          {showThemeToggle && (
+            <ThemeToggle theme={theme} onCycleTheme={onCycleTheme} />
+          )}
           <button
             type="button"
             className={styles.newConvBtn}

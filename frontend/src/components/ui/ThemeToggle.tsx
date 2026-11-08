@@ -79,3 +79,4 @@ export function ThemeToggle({ theme, onCycleTheme, className = '' }: ThemeToggle
     </button>
   );
 }
+

@@ -178,6 +178,10 @@ export function AppShell() {
     activeConvQuery.error instanceof ApiError &&
     activeConvQuery.error.status === 404;
 
+  const hasActiveChat = Boolean(
+    conversationId && activeConversation && !isConversationNotFound,
+  );
+
   const typingUserIds = conversationId ? getTypingUserIds(conversationId) : [];
 
   return (
@@ -194,6 +198,7 @@ export function AppShell() {
             currentUser={user}
             conversations={conversations}
             selectedConversationId={conversationId}
+            showThemeToggle={!hasActiveChat}
             isLoading={isLoadingConversations}
             isMobile={isMobile}
             theme={theme}

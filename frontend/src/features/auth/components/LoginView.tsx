@@ -44,6 +44,14 @@ export function LoginView() {
     <main className={styles.container}>
       <section className={styles.card} aria-labelledby="login-heading">
         <header className={styles.header}>
+          <div className={styles.appIcon} aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28">
+              <path
+                d="M12 4C7.03 4 3 7.36 3 11.5c0 2.09 1.03 3.98 2.69 5.34-.15 1.11-.65 2.13-1.39 2.86-.21.2-.06.56.23.54 1.59-.12 3.09-.69 4.18-1.45.99.27 2.09.41 3.29.41 4.97 0 9-3.36 9-7.5S16.97 4 12 4z"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
           <div className={styles.statusRow}>
             <BackendStatusBadge />
           </div>

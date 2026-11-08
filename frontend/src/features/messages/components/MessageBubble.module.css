@@ -1,18 +1,34 @@
 .row {
   display: flex;
   flex-direction: column;
-  max-width: var(--message-max-width);
-  gap: var(--space-1);
+  max-width: min(var(--message-max-width), 72%);
+  gap: 3px;
+  animation: bubbleIn var(--motion-slow) var(--motion-spring) both;
 }
 
 .rowOwn {
   align-self: flex-end;
   align-items: flex-end;
+  transform-origin: bottom right;
+  padding-right: var(--space-2);
 }
 
 .rowOther {
   align-self: flex-start;
   align-items: flex-start;
+  transform-origin: bottom left;
+  padding-left: var(--space-2);
+}
+
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .senderHeader {
@@ -20,55 +36,104 @@
   align-items: center;
   gap: var(--space-2);
   padding: 0 var(--space-1);
+  margin-top: var(--space-2);
 }
 
 .senderName {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .bubble {
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-lg);
+  position: relative;
+  padding: 7px 13px 8px;
+  border-radius: 19px;
   font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
+  line-height: 1.34;
+  letter-spacing: -0.012em;
   word-break: break-word;
-  border: 1px solid transparent;
+  border: none;
+}
+
+.bubble > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Signature Messages tails */
+.bubbleOwn::before,
+.bubbleOwn::after,
+.bubbleOther::before,
+.bubbleOther::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 20px;
+  z-index: 0;
 }
 
 .bubbleOwn {
-  background-color: var(--color-accent);
-  color: var(--color-on-accent);
-  border-bottom-right-radius: var(--radius-sm);
+  background: var(--bubble-own-bg);
+  color: var(--bubble-own-text);
+}
+
+.bubbleOwn::before {
+  right: -7px;
+  width: 20px;
+  background-color: var(--bubble-own-end);
+  border-bottom-left-radius: 16px 14px;
+}
+
+.bubbleOwn::after {
+  right: -26px;
+  width: 26px;
+  background-color: var(--color-chat-bg);
+  border-bottom-left-radius: 10px;
+  z-index: 1;
 }
 
 .bubbleOther {
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  border-color: var(--color-border);
-  border-bottom-left-radius: var(--radius-sm);
+  background-color: var(--bubble-other-bg);
+  color: var(--bubble-other-text);
+}
+
+.bubbleOther::before {
+  left: -7px;
+  width: 20px;
+  background-color: var(--bubble-other-bg);
+  border-bottom-right-radius: 16px 14px;
+}
+
+.bubbleOther::after {
+  left: -26px;
+  width: 26px;
+  background-color: var(--color-chat-bg);
+  border-bottom-right-radius: 10px;
+  z-index: 1;
 }
 
 .bubbleDeleted {
-  background-color: var(--color-surface-secondary);
-  color: var(--color-text-secondary);
-  border: 1px dashed var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-muted);
+  box-shadow: inset 0 0 0 1px var(--color-border-strong);
   font-style: italic;
 }
 
 .bubbleFailed {
-  border-color: var(--color-danger);
+  opacity: 0.72;
 }
 
 .replyQuote {
-  margin-bottom: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border-left: 3px solid currentColor;
-  border-radius: var(--radius-sm);
-  background-color: rgba(0, 0, 0, 0.08);
+  margin: 1px -5px var(--space-2);
+  padding: 6px 10px;
+  border-radius: 13px;
+  background-color: var(--color-fill);
   font-size: var(--font-size-xs);
-  opacity: 0.92;
+}
+
+.bubbleOwn .replyQuote {
+  background-color: var(--bubble-own-inset);
 }
 
 .replyAuthor {
@@ -82,6 +147,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 38ch;
+  opacity: 0.85;
 }
 
 .bodyText {
@@ -101,16 +167,22 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  background-color: rgba(0, 0, 0, 0.12);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 12px;
+  background-color: var(--color-fill);
   color: inherit;
   text-decoration: none;
   font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.bubbleOwn .attachmentLink {
+  background-color: var(--bubble-own-inset);
 }
 
 .attachmentLink:hover {
-  text-decoration: underline;
+  text-decoration: none;
+  opacity: 0.85;
 }
 
 .metaRow {
@@ -119,54 +191,71 @@
   align-items: center;
   gap: var(--space-2);
   padding: 0 var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  min-height: 18px;
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .failedText {
   color: var(--color-danger);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .actionsBar {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 2px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity var(--motion-base) var(--motion-ease),
+    transform var(--motion-base) var(--motion-spring);
+}
+
+.row:hover .actionsBar,
+.row:focus-within .actionsBar {
+  opacity: 1;
+  transform: none;
+}
+
+@media (hover: none) {
+  .actionsBar {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .actionBtn {
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--radius-pill);
   padding: 2px var(--space-2);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
   color: var(--color-accent);
   white-space: nowrap;
-  transition:
-    background-color var(--motion-fast) var(--motion-ease),
-    color var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease);
 }
 
 .actionBtn:hover {
   background-color: var(--color-accent-subtle);
-  color: var(--color-accent-hover);
 }
 
 .retryBtn {
-  background-color: var(--color-danger-subtle);
-  color: var(--color-danger);
-  border: 1px solid var(--color-danger);
+  background-color: var(--color-danger);
+  color: var(--color-on-accent);
+  border: none;
   border-radius: var(--radius-pill);
-  padding: 2px var(--space-2);
-  font-size: var(--font-size-xs);
+  padding: 2px var(--space-3);
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
 }
 
 @media (max-width: 768px) {
   .row {
-    max-width: 88%;
+    max-width: 82%;
   }
 
   .actionBtn {
@@ -174,3 +263,8 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+}

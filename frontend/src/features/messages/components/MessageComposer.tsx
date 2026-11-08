@@ -335,12 +335,21 @@ export function MessageComposer({
             <Button
               variant="secondary"
               size="md"
-              iconOnly={isMobile}
+              iconOnly
+              className={styles.attachBtn}
               onClick={() => fileInputRef.current?.click()}
               aria-label={ptBR.composer.attachButton}
               title={ptBR.composer.attachButton}
             >
-              {isMobile ? '+' : '+ Anexo'}
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path
+                  d="M12 5v14M5 12h14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+              </svg>
             </Button>
           </>
         )}
@@ -368,8 +377,38 @@ export function MessageComposer({
           className={styles.textarea}
         />
 
-        <Button type="submit" variant="primary" disabled={!canSubmit}>
-          {editingMessage ? ptBR.composer.saveEditButton : ptBR.composer.sendButton}
+        <Button
+          type="submit"
+          variant="primary"
+          iconOnly
+          className={styles.sendBtn}
+          disabled={!canSubmit}
+          aria-label={editingMessage ? ptBR.composer.saveEditButton : ptBR.composer.sendButton}
+          title={editingMessage ? ptBR.composer.saveEditButton : ptBR.composer.sendButton}
+        >
+          {editingMessage ? (
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                d="M5 12.5l4.5 4.5L19 7.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                d="M12 19V5M5.5 11.5L12 5l6.5 6.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
         </Button>
       </div>
 

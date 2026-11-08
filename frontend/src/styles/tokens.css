@@ -20,7 +20,28 @@
   --color-success-subtle: rgba(40, 205, 65, 0.14);
   --color-warning: #ff9500;
   --color-warning-subtle: rgba(255, 149, 0, 0.14);
-  --focus-ring: 0 0 0 3px rgba(0, 113, 227, 0.38);
+  --focus-ring: 0 0 0 4px rgba(0, 113, 227, 0.28);
+
+  /* Apple materials, fills & Messages palette */
+  --color-chat-bg: #ffffff;
+  --color-sidebar: rgba(246, 246, 248, 0.86);
+  --color-fill: rgba(118, 118, 128, 0.12);
+  --color-fill-strong: rgba(118, 118, 128, 0.2);
+  --material-bar: rgba(255, 255, 255, 0.72);
+  --material-thick: rgba(255, 255, 255, 0.86);
+  --material-blur: saturate(180%) blur(20px);
+  --bubble-own-start: #34a0ff;
+  --bubble-own-end: #0a7aff;
+  --bubble-own-bg: linear-gradient(180deg, var(--bubble-own-start) 0%, var(--bubble-own-end) 100%);
+  --bubble-own-text: #ffffff;
+  --bubble-own-inset: rgba(255, 255, 255, 0.2);
+  --bubble-other-bg: #e9e9eb;
+  --bubble-other-text: #000000;
+  --avatar-monogram: linear-gradient(180deg, #a9aeb8 0%, #858a95 100%);
+  --app-icon-gradient: linear-gradient(180deg, #5ac8fa 0%, #0a7aff 100%);
+  --gradient-ambient:
+    radial-gradient(60% 50% at 15% 10%, rgba(10, 122, 255, 0.16) 0%, transparent 70%),
+    radial-gradient(50% 50% at 85% 90%, rgba(175, 82, 222, 0.14) 0%, transparent 70%);
 
   --radius-sm: 8px;
   --radius-md: 10px;
@@ -44,17 +65,24 @@
   --font-size-md: 1rem;
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-2xs: 0.6875rem;
 
   --line-height-tight: 1.2;
   --line-height-base: 1.45;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  --shadow-popover: 0 16px 40px rgba(0, 0, 0, 0.18);
+  --shadow-popover: 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 24px 64px rgba(0, 0, 0, 0.18);
+  --shadow-card: 0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px rgba(0, 0, 0, 0.08);
+  --shadow-selected: 0 1px 3px rgba(10, 122, 255, 0.35);
+  --scrim: rgba(0, 0, 0, 0.32);
 
   --motion-fast: 120ms;
   --motion-base: 200ms;
+  --motion-slow: 380ms;
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --motion-spring: cubic-bezier(0.32, 0.72, 0, 1);
 
   --sidebar-width: 320px;
   --details-width: 300px;

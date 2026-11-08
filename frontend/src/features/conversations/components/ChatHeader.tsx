@@ -90,16 +90,18 @@ export function ChatHeader({
 
       <div className={styles.actions}>
         <ThemeToggle theme={theme} onCycleTheme={onCycleTheme} />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRequestDeleteConversation}
-          aria-label={deleteFullLabel}
-          title={deleteFullLabel}
-          className={styles.actionDanger}
-        >
-          {isMobile ? '🗑' : deleteFullLabel}
-        </Button>
+        {!detailsOpen && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRequestDeleteConversation}
+            aria-label={deleteFullLabel}
+            title={deleteFullLabel}
+            className={styles.actionDanger}
+          >
+            {isMobile ? '🗑' : deleteFullLabel}
+          </Button>
+        )}
         <Button
           variant={detailsOpen ? 'tinted' : 'ghost'}
           size="sm"

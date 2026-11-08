@@ -141,7 +141,7 @@ export const ptBR = {
     notFoundBody: 'Esta conversa não existe ou você não tem acesso a ela.',
     typingSingle: (name: string) => `${name} está digitando…`,
     typingMultiple: 'Várias pessoas estão digitando…',
-    e2eeBadge: '🔒 Criptografia ponta a ponta (Signal E2EE)',
+    e2eeBadge: '🔒 Criptografia em trânsito (TLS)',
     deleteConversationDirectButton: 'Apagar conversa',
     deleteConversationGroupButton: 'Apagar grupo',
     deleteConversationDirectTitle: 'Apagar conversa para você?',

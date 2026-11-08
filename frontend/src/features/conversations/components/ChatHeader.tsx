@@ -48,7 +48,7 @@ export function ChatHeader({
     subtitleText = ptBR.chat.lastSeen(formatMessageTime(peerPresence.lastSeenAt));
   }
 
-  const e2eeLabel = isMobile ? '🔒 E2EE' : ptBR.chat.e2eeBadge;
+  const e2eeLabel = isMobile ? '🔒 TLS' : ptBR.chat.e2eeBadge;
   const deleteFullLabel =
     conversation.type === 'group'
       ? ptBR.chat.deleteConversationGroupButton

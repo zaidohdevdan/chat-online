@@ -20,7 +20,7 @@ Este documento é o contrato REST. Em caso de conflito com outros documentos, el
 | POST | `/auth/logout` | Encerra a sessão |
 | GET | `/me` | Usuário atual e token CSRF |
 | POST | `/me/password` | Altera a senha do usuário autenticado (`currentPassword`, `newPassword`) |
-| PUT | `/me/keys` | Publica a chave pública ECDH P-256 do usuário para criptografia ponta a ponta (E2EE) |
+| PUT | `/me/keys` | Publica a chave pública ECDH P-256 do usuário (experimental; não configura E2EE real) |
 
 - `POST /auth/login` e `GET /me` retornam `csrfToken` no corpo.
 - Toda requisição `POST`, `PATCH` e `DELETE` autenticada por cookie deve enviar o header `X-CSRF-Token`. O backend também valida `Origin`.
@@ -105,15 +105,16 @@ Regras do `status`:
 - Conversas direct entre os mesmos dois usuários são únicas: `POST` repetido retorna a existente com `200` (e reexibe caso estivesse oculta).
 - Quem não é membro recebe `404`, nunca `403`, para não revelar a existência da conversa.
 
-## 6. Mensagens e Criptografia Ponta a Ponta (E2EE estilo Signal)
+## 6. Mensagens
 
 | Método | Endpoint | Descrição |
 |---|---|---|
-| POST | `/conversations/{id}/messages` | Envia mensagem (pacote cifrado E2EE `AES-256-GCM` + `ECDH/HKDF`) |
+| POST | `/conversations/{id}/messages` | Envia mensagem |
 | PATCH | `/messages/{id}` | Edita o corpo (apenas o autor) |
 | DELETE | `/messages/{id}?scope=all\|me` | Apaga a mensagem: `scope=me` oculta somente para o usuário atual (soft-hide); `scope=all` apaga permanentemente para todos — **exige autoria**: apenas o remetente original pode usar este escopo. Retorna `403` se outro membro tentar. Se a mensagem não existir no banco, retorna `404` em ambos os escopos. |
 
-- **Privacidade e Fila Efêmera (Signal Queue)**: As mensagens são cifradas ponta a ponta no cliente (`Web Crypto API`: `ECDH P-256` + `HKDF-SHA256` + `AES-256-GCM`) e mantidas no banco apenas como fila de entrega para destinatários offline. Assim que todos os destinatários da conversa confirmam o recebimento (`message.ack`), a mensagem é removida do banco de dados; o histórico permanece apenas no dispositivo local de cada usuário.
+- **Segurança em trânsito**: toda comunicação ocorre sobre HTTPS/WSS (TLS). Não há criptografia ponta a ponta implementada no cliente: o corpo das mensagens é armazenado em texto no banco de dados.
+- O endpoint `PUT /me/keys` existe no banco de dados mas **não provê E2EE real** — a chave pública é usada apenas por um mecanismo experimental não auditado. Não exiba nem documente como "criptografia ponta a ponta".
 - Edição e exclusão para todos geram os eventos `message.updated` e `message.deleted`. A exclusão em grupo gera `conversation.deleted`.
 
 ## 7. Uploads

@@ -4,7 +4,7 @@ import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
 import { ApiError } from '../../../lib/http';
 import { ptBR } from '../../../lib/i18n';
-import { addContactByUsername, searchUsers } from '../../auth/api';
+import { addContactByUsername, requestUserInvite, searchUsers } from '../../auth/api';
 import type { UserSummary } from '../../auth/types';
 import type { ConversationType, CreateConversationRequest } from '../types';
 import styles from './NewConversationModal.module.css';
@@ -30,6 +30,8 @@ export function NewConversationModal({
   const [query, setQuery] = useState('');
   const [contactUsername, setContactUsername] = useState('');
   const [contactFeedback, setContactFeedback] = useState<string | null>(null);
+  const [missingUsername, setMissingUsername] = useState<string | null>(null);
+  const [inviteDisplayName, setInviteDisplayName] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<UserSummary[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -61,16 +63,40 @@ export function NewConversationModal({
     mutationFn: (usernameToLink: string) => addContactByUsername(usernameToLink),
     onSuccess: (addedUser) => {
       setContactUsername('');
+      setMissingUsername(null);
+      setInviteDisplayName('');
       setValidationError(null);
       setContactFeedback(ptBR.newConversation.addContactSuccess(addedUser.displayName));
       void queryClient.invalidateQueries({ queryKey: ['users', 'search'] });
       handleToggleUser(addedUser);
     },
-    onError: (err) => {
+    onError: (err, usernameToLink) => {
       setContactFeedback(null);
       if (err instanceof ApiError && err.status === 404) {
-        setValidationError(ptBR.newConversation.addContactNotFound);
+        setValidationError(null);
+        setMissingUsername(usernameToLink);
       } else if (err instanceof ApiError) {
+        setMissingUsername(null);
+        setValidationError(err.message);
+      } else {
+        setMissingUsername(null);
+        setValidationError(ptBR.common.errorGeneric);
+      }
+    },
+  });
+
+  const inviteUserMutation = useMutation({
+    mutationFn: (input: { username: string; displayName?: string }) =>
+      requestUserInvite(input.username, input.displayName),
+    onSuccess: (res) => {
+      setMissingUsername(null);
+      setContactUsername('');
+      setInviteDisplayName('');
+      setValidationError(null);
+      setContactFeedback(ptBR.newConversation.inviteSentSuccess(res.requestedUsername));
+    },
+    onError: (err) => {
+      if (err instanceof ApiError) {
         setValidationError(err.message);
       } else {
         setValidationError(ptBR.common.errorGeneric);
@@ -189,6 +215,7 @@ export function NewConversationModal({
                 onChange={(e) => {
                   setContactUsername(e.target.value);
                   setContactFeedback(null);
+                  setMissingUsername(null);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -215,6 +242,41 @@ export function NewConversationModal({
               <p role="status" className={styles.successText}>
                 {contactFeedback}
               </p>
+            )}
+            {missingUsername && (
+              <div role="region" aria-live="polite" className={styles.invitePromptCard}>
+                <p className={styles.invitePromptTitle}>
+                  {ptBR.newConversation.invitePromptTitle(missingUsername)}
+                </p>
+                <p className={styles.invitePromptBody}>
+                  {ptBR.newConversation.invitePromptBody}
+                </p>
+                <input
+                  type="text"
+                  value={inviteDisplayName}
+                  onChange={(e) => setInviteDisplayName(e.target.value)}
+                  placeholder={ptBR.newConversation.inviteDisplayNamePlaceholder}
+                  className={styles.input}
+                />
+                <div className={styles.inviteActions}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    disabled={inviteUserMutation.isPending}
+                    onClick={() =>
+                      inviteUserMutation.mutate({
+                        username: missingUsername,
+                        displayName: inviteDisplayName,
+                      })
+                    }
+                  >
+                    {inviteUserMutation.isPending
+                      ? ptBR.newConversation.invitingButton
+                      : ptBR.newConversation.inviteButton}
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
 

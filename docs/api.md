@@ -80,9 +80,11 @@ Regras do `status`:
 | GET | `/users/{id}` | Perfil do usuário |
 | GET | `/users?query=&limit=` | Lista e busca apenas contatos vinculados ao usuário autenticado |
 | POST | `/users/contacts` | Vincula um contato à agenda do usuário autenticado pelo `username` exato |
+| POST | `/users/invite-requests` | Envia solicitação ao administrador para criar conta para um convidado |
 
-- Por privacidade, `GET /users` nunca expõe o diretório global de contas; retorna apenas contatos já vinculados ao usuário autenticado (ou com quem já compartilha conversa).
+- Por privacidade, `GET /users` nunca expõe o diretório global de contas; retorna apenas contatos já vinculados ao usuário autenticado.
 - `POST /users/contacts` recebe `{ "username": "identificador" }` (case-insensitive, com ou sem `@`) e retorna o `UserSummary` vinculado (`201` quando novo vínculo, `200` quando já existente, `404` se não encontrado).
+- `POST /users/invite-requests` recebe `{ "username": "identificador", "displayName": "Nome opcional" }`, registra o pedido para o administrador e notifica a conta administradora via mensagem no chat (`201 Created`).
 
 ## 5. Conversas
 

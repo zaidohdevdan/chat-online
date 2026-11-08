@@ -67,6 +67,15 @@ func main() {
 		out, _ := json.MarshalIndent(created.User, "", "  ")
 		fmt.Println(string(out))
 
+	case "requests":
+		requests, err := usersService.ListAccountRequests(ctx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "erro ao listar solicitações: %v\n", err)
+			os.Exit(1)
+		}
+		out, _ := json.MarshalIndent(requests, "", "  ")
+		fmt.Println(string(out))
+
 	case "lgpd-export":
 		fs := flag.NewFlagSet("lgpd-export", flag.ExitOnError)
 		userID := fs.String("user-id", "", "UUID do usuário")
@@ -115,6 +124,7 @@ func main() {
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Comandos disponíveis em userctl:")
 	fmt.Fprintln(os.Stderr, "  create       -username <login> -name <nome> -password <senha>")
+	fmt.Fprintln(os.Stderr, "  requests     (lista solicitações de novas contas feitas pelos usuários)")
 	fmt.Fprintln(os.Stderr, "  lgpd-export  -user-id <uuid>")
 	fmt.Fprintln(os.Stderr, "  lgpd-delete  -user-id <uuid>")
 }

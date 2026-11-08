@@ -50,7 +50,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, *app.Application) {
 	}
 
 	// Clean test tables before running test suite
-	_, err = pool.Exec(ctx, `TRUNCATE events, attachments, messages, conversation_members, conversations, user_contacts, sessions, users CASCADE`)
+	_, err = pool.Exec(ctx, `TRUNCATE events, attachments, messages, conversation_members, conversations, account_requests, user_contacts, sessions, users CASCADE`)
 	if err != nil {
 		pool.Close()
 		t.Fatalf("truncate tables: %v", err)
@@ -252,6 +252,23 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201 linking Bob by username, got %d: %s", resp.StatusCode, string(raw))
 	}
+
+	// Non-existent user returns 404 on /users/contacts, and Alice can request an account invite via /users/invite-requests
+	resp, _ = aliceClient.doJSON(http.MethodPost, "/api/v1/users/contacts", map[string]string{
+		"username": "novo.amigo",
+	}, true)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404 when linking non-existent user, got %d", resp.StatusCode)
+	}
+
+	resp, raw = aliceClient.doJSON(http.MethodPost, "/api/v1/users/invite-requests", map[string]string{
+		"username":    "@novo.amigo",
+		"displayName": "Novo Amigo",
+	}, true)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 on invite request, got %d: %s", resp.StatusCode, string(raw))
+	}
+
 
 	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/users?query=", nil, false)
 	_ = json.Unmarshal(raw, &initialContacts)

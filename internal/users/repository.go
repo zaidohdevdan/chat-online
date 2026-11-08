@@ -75,6 +75,21 @@ func (r *Repository) Create(ctx context.Context, username, displayName, password
 		return nil, err
 	}
 	rec.User.Username = rec.Username
+
+	// Auto-approve any pending account_requests for this username and link requester <-> new user
+	_, _ = r.pool.Exec(ctx, `
+		INSERT INTO user_contacts (owner_id, contact_id, created_at)
+		SELECT requester_id, $1::uuid, NOW()
+		FROM account_requests
+		WHERE LOWER(requested_username) = $2 AND requester_id <> $1::uuid
+		ON CONFLICT (owner_id, contact_id) DO NOTHING
+	`, rec.ID, normalized)
+	_, _ = r.pool.Exec(ctx, `
+		UPDATE account_requests
+		SET status = 'approved'
+		WHERE LOWER(requested_username) = $1 AND status = 'pending'
+	`, normalized)
+
 	return &rec, nil
 }
 
@@ -352,4 +367,87 @@ func (r *Repository) AnonymizeAndDeleteUser(ctx context.Context, userID string) 
 		return nil, err
 	}
 	return storageKeys, nil
+}
+
+type AccountRequest struct {
+	ID                   string    `json:"id"`
+	RequesterID          string    `json:"requesterId"`
+	RequesterUsername    string    `json:"requesterUsername"`
+	RequesterDisplayName string    `json:"requesterDisplayName"`
+	RequestedUsername    string    `json:"requestedUsername"`
+	RequestedDisplayName string    `json:"requestedDisplayName,omitempty"`
+	Status               string    `json:"status"`
+	CreatedAt            time.Time `json:"createdAt"`
+}
+
+func (r *Repository) CreateAccountRequest(ctx context.Context, requesterID, requestedUsername, requestedDisplayName string) (*AccountRequest, error) {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, err
+	}
+	normalized := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(requestedUsername), "@"))
+	cleanDisplay := strings.TrimSpace(requestedDisplayName)
+	now := time.Now().UTC()
+
+	_, err = r.pool.Exec(ctx, `
+		INSERT INTO account_requests (id, requester_id, requested_username, requested_display_name, status, created_at)
+		VALUES ($1, $2, $3, $4, 'pending', $5)
+	`, id, requesterID, normalized, cleanDisplay, now)
+	if err != nil {
+		return nil, err
+	}
+
+	var req AccountRequest
+	err = r.pool.QueryRow(ctx, `
+		SELECT ar.id::text, ar.requester_id::text, u.username, u.display_name, ar.requested_username, ar.requested_display_name, ar.status, ar.created_at
+		FROM account_requests ar
+		JOIN users u ON u.id = ar.requester_id
+		WHERE ar.id = $1
+	`, id).Scan(
+		&req.ID,
+		&req.RequesterID,
+		&req.RequesterUsername,
+		&req.RequesterDisplayName,
+		&req.RequestedUsername,
+		&req.RequestedDisplayName,
+		&req.Status,
+		&req.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &req, nil
+}
+
+func (r *Repository) ListAccountRequests(ctx context.Context) ([]AccountRequest, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT ar.id::text, ar.requester_id::text, u.username, u.display_name, ar.requested_username, ar.requested_display_name, ar.status, ar.created_at
+		FROM account_requests ar
+		JOIN users u ON u.id = ar.requester_id
+		ORDER BY ar.created_at DESC
+		LIMIT 100
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := make([]AccountRequest, 0)
+	for rows.Next() {
+		var item AccountRequest
+		if err := rows.Scan(
+			&item.ID,
+			&item.RequesterID,
+			&item.RequesterUsername,
+			&item.RequesterDisplayName,
+			&item.RequestedUsername,
+			&item.RequestedDisplayName,
+			&item.Status,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, item)
+	}
+	return list, rows.Err()
 }

@@ -82,3 +82,26 @@ export async function addContactByUsername(username: string): Promise<UserSummar
     body: { username: username.trim().replace(/^@/, '') },
   });
 }
+
+export interface InviteRequestResponse {
+  id: string;
+  requesterId: string;
+  requestedUsername: string;
+  requestedName?: string;
+  status: string;
+  createdAt: string;
+}
+
+export async function requestUserInvite(
+  username: string,
+  displayName?: string,
+): Promise<InviteRequestResponse> {
+  return apiRequest<InviteRequestResponse>('/users/invite-requests', {
+    method: 'POST',
+    body: {
+      username: username.trim().replace(/^@/, ''),
+      displayName: displayName?.trim() || undefined,
+    },
+  });
+}
+

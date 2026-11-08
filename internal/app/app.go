@@ -79,6 +79,10 @@ func New(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) (*Applicat
 		MsgService:   msgService,
 	}
 
+	usersService.SetOnAccountRequested(func(reqCtx context.Context, req *users.AccountRequest) {
+		app.notifyAdminsOfAccountRequest(reqCtx, req)
+	})
+
 	if cfg.SeedDevUsers {
 		app.seedDevelopmentData(ctx)
 		authService.SetOnDevUserCreated(func(bgCtx context.Context, newUser users.User) {
@@ -151,6 +155,7 @@ func (a *Application) buildRouter(
 
 				csrfProtected.Get("/users", usersHandler.SearchUsers)
 				csrfProtected.Post("/users/contacts", usersHandler.AddContact)
+				csrfProtected.Post("/users/invite-requests", usersHandler.CreateInviteRequest)
 				csrfProtected.Get("/users/{id}", usersHandler.GetUser)
 
 				csrfProtected.Get("/conversations", convHandler.List)
@@ -212,6 +217,50 @@ func (a *Application) mountSPAStaticHandler(r *chi.Mux, staticDir string) {
 		w.Header().Set("Cache-Control", "no-store")
 		http.ServeFile(w, req, indexPath)
 	})
+}
+
+func (a *Application) notifyAdminsOfAccountRequest(ctx context.Context, req *users.AccountRequest) {
+	if req == nil {
+		return
+	}
+	adminUsernames := []string{"daniel.almeida", "danfealmeidafilho@gmail.com"}
+	if rawAdmins := strings.TrimSpace(os.Getenv("ADMIN_USERNAMES")); rawAdmins != "" {
+		adminUsernames = nil
+		for _, item := range strings.Split(rawAdmins, ",") {
+			if trimmed := strings.TrimSpace(item); trimmed != "" {
+				adminUsernames = append(adminUsernames, trimmed)
+			}
+		}
+	}
+
+	namePart := ""
+	if req.RequestedDisplayName != "" {
+		namePart = " (" + req.RequestedDisplayName + ")"
+	}
+	msgBody := "📩 Solicitação de nova conta: " + req.RequesterDisplayName + " (@" + req.RequesterUsername + ") pediu para convidar @" + req.RequestedUsername + namePart + " para o Chat Online."
+
+	for _, adminUsername := range adminUsernames {
+		adminRec, err := a.UsersService.GetByUsername(ctx, adminUsername)
+		if err != nil || adminRec.ID == req.RequesterID {
+			continue
+		}
+		conv, _, err := a.ConvService.Create(ctx, req.RequesterID, conversations.CreateInput{
+			Type:      "direct",
+			MemberIDs: []string{adminRec.ID},
+		})
+		if err != nil || conv == nil {
+			continue
+		}
+		clientID, _ := uuid.NewV7()
+		_, _, _ = a.MsgService.Send(ctx, conv.ID, users.UserSummary{
+			ID:          req.RequesterID,
+			Username:    req.RequesterUsername,
+			DisplayName: req.RequesterDisplayName,
+		}, messages.SendInput{
+			Body:            msgBody,
+			ClientMessageID: clientID.String(),
+		})
+	}
 }
 
 func (a *Application) seedDevelopmentData(ctx context.Context) {

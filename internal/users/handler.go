@@ -105,3 +105,37 @@ func (h *Handler) AddContact(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.WriteJSON(w, status, contact)
 }
+
+type createInviteRequest struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+}
+
+func (h *Handler) CreateInviteRequest(w http.ResponseWriter, r *http.Request) {
+	ownerID, ok := httpx.GetUserID(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+
+	var req createInviteRequest
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	if err := dec.Decode(&req); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "BAD_REQUEST", "JSON inválido")
+		return
+	}
+
+	cleaned := strings.TrimPrefix(strings.TrimSpace(req.Username), "@")
+	if cleaned == "" || len(cleaned) > 120 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Informe um username válido para convidar")
+		return
+	}
+
+	created, err := h.service.CreateAccountRequest(r.Context(), ownerID, cleaned, req.DisplayName)
+	if err != nil {
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao enviar solicitação ao administrador")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, created)
+}

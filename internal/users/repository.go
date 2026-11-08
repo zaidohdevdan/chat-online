@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"time"
 
@@ -16,6 +17,28 @@ var (
 	ErrCannotAddSelf = errors.New("cannot add self as contact")
 )
 
+func IsAdminUsername(username string) bool {
+	cleaned := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
+	if cleaned == "" {
+		return false
+	}
+	adminList := []string{"daniel.almeida", "danfealmeidafilho@gmail.com"}
+	if raw := strings.TrimSpace(os.Getenv("ADMIN_USERNAMES")); raw != "" {
+		adminList = nil
+		for _, item := range strings.Split(raw, ",") {
+			if t := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(item), "@")); t != "" {
+				adminList = append(adminList, t)
+			}
+		}
+	}
+	for _, admin := range adminList {
+		if cleaned == admin {
+			return true
+		}
+	}
+	return false
+}
+
 type UserSummary struct {
 	ID          string  `json:"id"`
 	Username    string  `json:"username,omitempty"`
@@ -28,6 +51,7 @@ type User struct {
 	Username    string    `json:"username,omitempty"`
 	DisplayName string    `json:"displayName"`
 	AvatarURL   *string   `json:"avatarUrl,omitempty"`
+	IsAdmin     bool      `json:"isAdmin,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
@@ -45,13 +69,13 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) Create(ctx context.Context, username, displayName, passwordHash string, avatarURL *string) (*UserRecord, error) {
+func (r *Repository) Create(ctx context.Context, username, displayName, passwordHash string, avatarURL *string) (*UserRecord, []string, error) {
 	id, err := uuid.NewV7()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	now := time.Now().UTC()
-	normalized := strings.ToLower(strings.TrimSpace(username))
+	normalized := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
 
 	var rec UserRecord
 	rec.Username = normalized
@@ -72,11 +96,12 @@ func (r *Repository) Create(ctx context.Context, username, displayName, password
 		&rec.CreatedAt,
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	rec.User.Username = rec.Username
+	rec.User.IsAdmin = IsAdminUsername(rec.Username)
 
-	// Auto-approve any pending account_requests for this username and link requester <-> new user
+	// Auto-approve any pending account_requests for this username and link requester <-> new user bidirectionally
 	_, _ = r.pool.Exec(ctx, `
 		INSERT INTO user_contacts (owner_id, contact_id, created_at)
 		SELECT requester_id, $1::uuid, NOW()
@@ -85,12 +110,31 @@ func (r *Repository) Create(ctx context.Context, username, displayName, password
 		ON CONFLICT (owner_id, contact_id) DO NOTHING
 	`, rec.ID, normalized)
 	_, _ = r.pool.Exec(ctx, `
+		INSERT INTO user_contacts (owner_id, contact_id, created_at)
+		SELECT $1::uuid, requester_id, NOW()
+		FROM account_requests
+		WHERE LOWER(requested_username) = $2 AND requester_id <> $1::uuid
+		ON CONFLICT (owner_id, contact_id) DO NOTHING
+	`, rec.ID, normalized)
+
+	var approvedRequesterIDs []string
+	rows, qErr := r.pool.Query(ctx, `
 		UPDATE account_requests
 		SET status = 'approved'
 		WHERE LOWER(requested_username) = $1 AND status = 'pending'
+		RETURNING DISTINCT requester_id::text
 	`, normalized)
+	if qErr == nil {
+		for rows.Next() {
+			var reqID string
+			if err := rows.Scan(&reqID); err == nil {
+				approvedRequesterIDs = append(approvedRequesterIDs, reqID)
+			}
+		}
+		rows.Close()
+	}
 
-	return &rec, nil
+	return &rec, approvedRequesterIDs, nil
 }
 
 func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
@@ -109,7 +153,54 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
+	u.IsAdmin = IsAdminUsername(u.Username)
 	return &u, nil
+}
+
+func (r *Repository) GetRecordByID(ctx context.Context, id string) (*UserRecord, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrUserNotFound
+	}
+	var rec UserRecord
+	err := r.pool.QueryRow(ctx, `
+		SELECT id::text, username, display_name, avatar_url, password_hash, created_at
+		FROM users
+		WHERE id = $1
+	`, id).Scan(
+		&rec.ID,
+		&rec.Username,
+		&rec.DisplayName,
+		&rec.AvatarURL,
+		&rec.PasswordHash,
+		&rec.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrUserNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	rec.User.Username = rec.Username
+	rec.User.IsAdmin = IsAdminUsername(rec.Username)
+	return &rec, nil
+}
+
+func (r *Repository) UpdatePasswordHash(ctx context.Context, userID, passwordHash string) error {
+	if _, err := uuid.Parse(userID); err != nil {
+		return ErrUserNotFound
+	}
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE users
+		SET password_hash = $2
+		WHERE id = $1
+	`, userID, passwordHash)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+	return nil
 }
 
 func (r *Repository) GetByIDs(ctx context.Context, ids []string) ([]UserSummary, error) {
@@ -160,6 +251,7 @@ func (r *Repository) GetByUsername(ctx context.Context, username string) (*UserR
 		return nil, err
 	}
 	rec.User.Username = rec.Username
+	rec.User.IsAdmin = IsAdminUsername(rec.Username)
 	return &rec, nil
 }
 

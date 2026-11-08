@@ -82,6 +82,9 @@ func New(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool) (*Applicat
 	usersService.SetOnAccountRequested(func(reqCtx context.Context, req *users.AccountRequest) {
 		app.notifyAdminsOfAccountRequest(reqCtx, req)
 	})
+	usersService.SetOnAccountApproved(func(appvCtx context.Context, createdUser users.User, requesterIDs []string) {
+		app.notifyRequestersOfApprovedAccount(appvCtx, createdUser, requesterIDs)
+	})
 
 	if cfg.SeedDevUsers {
 		app.seedDevelopmentData(ctx)
@@ -151,7 +154,11 @@ func (a *Application) buildRouter(
 				csrfProtected.Use(middleware.RequireCSRF(a.Config.AllowedOrigins))
 
 				csrfProtected.Get("/me", authHandler.GetMe)
+				csrfProtected.Post("/me/password", authHandler.ChangePassword)
 				csrfProtected.Post("/auth/logout", authHandler.Logout)
+
+				csrfProtected.Get("/admin/account-requests", authHandler.AdminListAccountRequests)
+				csrfProtected.Post("/admin/users", authHandler.AdminCreateUser)
 
 				csrfProtected.Get("/users", usersHandler.SearchUsers)
 				csrfProtected.Post("/users/contacts", usersHandler.AddContact)
@@ -237,7 +244,7 @@ func (a *Application) notifyAdminsOfAccountRequest(ctx context.Context, req *use
 	if req.RequestedDisplayName != "" {
 		namePart = " (" + req.RequestedDisplayName + ")"
 	}
-	msgBody := "📩 Solicitação de nova conta: " + req.RequesterDisplayName + " (@" + req.RequesterUsername + ") pediu para convidar @" + req.RequestedUsername + namePart + " para o Chat Online."
+	msgBody := "📩 Solicitação de nova conta: " + req.RequesterDisplayName + " (@" + req.RequesterUsername + ") pediu para convidar @" + req.RequestedUsername + namePart + " para o Chat Online. Abra o botão \"Admin\" na barra lateral para aprovar e criar a conta com 1 clique."
 
 	for _, adminUsername := range adminUsernames {
 		adminRec, err := a.UsersService.GetByUsername(ctx, adminUsername)
@@ -256,6 +263,53 @@ func (a *Application) notifyAdminsOfAccountRequest(ctx context.Context, req *use
 			ID:          req.RequesterID,
 			Username:    req.RequesterUsername,
 			DisplayName: req.RequesterDisplayName,
+		}, messages.SendInput{
+			Body:            msgBody,
+			ClientMessageID: clientID.String(),
+		})
+	}
+}
+
+func (a *Application) notifyRequestersOfApprovedAccount(ctx context.Context, createdUser users.User, requesterIDs []string) {
+	adminUsernames := []string{"daniel.almeida", "danfealmeidafilho@gmail.com"}
+	if rawAdmins := strings.TrimSpace(os.Getenv("ADMIN_USERNAMES")); rawAdmins != "" {
+		adminUsernames = nil
+		for _, item := range strings.Split(rawAdmins, ",") {
+			if trimmed := strings.TrimSpace(item); trimmed != "" {
+				adminUsernames = append(adminUsernames, trimmed)
+			}
+		}
+	}
+
+	var senderAdmin *users.UserRecord
+	for _, adminUsername := range adminUsernames {
+		if rec, err := a.UsersService.GetByUsername(ctx, adminUsername); err == nil {
+			senderAdmin = rec
+			break
+		}
+	}
+	if senderAdmin == nil {
+		return
+	}
+
+	msgBody := "✅ Conta @" + createdUser.Username + " (" + createdUser.DisplayName + ") foi criada pelo Administrador e já está vinculada aos seus contatos! Você já pode iniciar uma conversa com ela."
+
+	for _, reqID := range requesterIDs {
+		if reqID == senderAdmin.ID {
+			continue
+		}
+		conv, _, err := a.ConvService.Create(ctx, senderAdmin.ID, conversations.CreateInput{
+			Type:      "direct",
+			MemberIDs: []string{reqID},
+		})
+		if err != nil || conv == nil {
+			continue
+		}
+		clientID, _ := uuid.NewV7()
+		_, _, _ = a.MsgService.Send(ctx, conv.ID, users.UserSummary{
+			ID:          senderAdmin.ID,
+			Username:    senderAdmin.Username,
+			DisplayName: senderAdmin.DisplayName,
 		}, messages.SendInput{
 			Body:            msgBody,
 			ClientMessageID: clientID.String(),

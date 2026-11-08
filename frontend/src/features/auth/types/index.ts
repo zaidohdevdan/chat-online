@@ -6,6 +6,18 @@ export type UserSummary = {
 };
 
 export type User = UserSummary & {
+  isAdmin?: boolean;
+  createdAt: string;
+};
+
+export type AccountRequestItem = {
+  id: string;
+  requesterId: string;
+  requesterUsername: string;
+  requesterDisplayName: string;
+  requestedUsername: string;
+  requestedDisplayName?: string;
+  status: 'pending' | 'approved' | string;
   createdAt: string;
 };
 

@@ -22,9 +22,12 @@ export interface ConversationSidebarProps {
   isMobile: boolean;
   theme: ThemePreference;
   connectionState?: ConnectionState;
+  pendingAdminRequestsCount?: number;
   onCycleTheme: () => void;
   onSelectConversation: (conversationId: string) => void;
   onOpenNewConversation: () => void;
+  onOpenChangePassword: () => void;
+  onOpenAdminPanel?: () => void;
   onLogout: () => void;
   isLoggingOut: boolean;
   getPresence: (userId: string) => UserPresence | undefined;
@@ -39,9 +42,12 @@ export function ConversationSidebar({
   isMobile,
   theme,
   connectionState,
+  pendingAdminRequestsCount = 0,
   onCycleTheme,
   onSelectConversation,
   onOpenNewConversation,
+  onOpenChangePassword,
+  onOpenAdminPanel,
   onLogout,
   isLoggingOut,
   getPresence,
@@ -128,6 +134,15 @@ export function ConversationSidebar({
           <h1 className={styles.appTitle}>{ptBR.app.title}</h1>
         </div>
         <div className={styles.headerActions}>
+          {currentUser.isAdmin && onOpenAdminPanel && (
+            <Button
+              variant={pendingAdminRequestsCount > 0 ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={onOpenAdminPanel}
+            >
+              {ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -293,6 +308,13 @@ export function ConversationSidebar({
         </div>
         <div className={styles.headerActions}>
           <BackendStatusBadge realtimeState={connectionState} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenChangePassword}
+          >
+            {ptBR.auth.changePasswordButton}
+          </Button>
           <Button
             variant="ghost"
             size="sm"

@@ -11,7 +11,10 @@ import (
 	"chat-online/internal/users"
 )
 
-var ErrInvalidCredentials = errors.New("invalid credentials")
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrWeakPassword       = errors.New("weak password")
+)
 
 // Dummy hash used to mitigate timing side-channels when a user does not exist.
 var dummyHash string
@@ -141,6 +144,60 @@ func (s *Service) Logout(ctx context.Context, rawToken, userID string) error {
 		return s.repo.DeleteAllForUser(ctx, userID)
 	}
 	return nil
+}
+
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if currentPassword == "" || newPassword == "" {
+		return ErrInvalidCredentials
+	}
+	if err := ValidatePasswordStrength(newPassword); err != nil {
+		return ErrWeakPassword
+	}
+
+	rec, err := s.usersService.GetRecordByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !VerifyPassword(currentPassword, rec.PasswordHash) {
+		return ErrInvalidCredentials
+	}
+
+	newHash, err := HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	return s.usersService.UpdatePasswordHash(ctx, userID, newHash)
+}
+
+func (s *Service) AdminCreateOrUpdateUser(ctx context.Context, username, displayName, rawPassword string) (*users.User, error) {
+	cleanedUsername := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(username), "@"))
+	if cleanedUsername == "" {
+		return nil, errors.New("username required")
+	}
+	if err := ValidatePasswordStrength(rawPassword); err != nil {
+		return nil, ErrWeakPassword
+	}
+	cleanedDisplay := strings.TrimSpace(displayName)
+	if cleanedDisplay == "" {
+		cleanedDisplay = deriveDisplayName(cleanedUsername)
+	}
+
+	hash, err := HashPassword(rawPassword)
+	if err != nil {
+		return nil, err
+	}
+
+	created, err := s.usersService.CreateUser(ctx, cleanedUsername, cleanedDisplay, hash, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &created.User, nil
+}
+
+func (s *Service) ListAccountRequests(ctx context.Context) ([]users.AccountRequest, error) {
+	return s.usersService.ListAccountRequests(ctx)
 }
 
 func (s *Service) StartSessionCleanupWorker(ctx context.Context) {

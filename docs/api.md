@@ -19,6 +19,7 @@ Este documento é o contrato REST. Em caso de conflito com outros documentos, el
 | POST | `/auth/login` | Autentica e cria a sessão |
 | POST | `/auth/logout` | Encerra a sessão |
 | GET | `/me` | Usuário atual e token CSRF |
+| POST | `/me/password` | Altera a senha do usuário autenticado (`currentPassword`, `newPassword`) |
 
 - `POST /auth/login` e `GET /me` retornam `csrfToken` no corpo.
 - Toda requisição `POST`, `PATCH` e `DELETE` autenticada por cookie deve enviar o header `X-CSRF-Token`. O backend também valida `Origin`.
@@ -30,7 +31,7 @@ Este documento é o contrato REST. Em caso de conflito com outros documentos, el
 ```ts
 type UserSummary = { id: string; username?: string; displayName: string; avatarUrl?: string };
 
-type User = UserSummary & { createdAt: string };
+type User = UserSummary & { isAdmin?: boolean; createdAt: string };
 
 type Conversation = {
   id: string;
@@ -81,6 +82,8 @@ Regras do `status`:
 | GET | `/users?query=&limit=` | Lista e busca apenas contatos vinculados ao usuário autenticado |
 | POST | `/users/contacts` | Vincula um contato à agenda do usuário autenticado pelo `username` exato |
 | POST | `/users/invite-requests` | Envia solicitação ao administrador para criar conta para um convidado |
+| GET | `/admin/account-requests` | Lista solicitações de convite (exclusivo para administradores) |
+| POST | `/admin/users` | Cria ou atualiza conta com senha padrão e aprova solicitações pendentes (exclusivo para administradores) |
 
 - Por privacidade, `GET /users` nunca expõe o diretório global de contas; retorna apenas contatos já vinculados ao usuário autenticado.
 - `POST /users/contacts` recebe `{ "username": "identificador" }` (case-insensitive, com ou sem `@`) e retorna o `UserSummary` vinculado (`201` quando novo vínculo, `200` quando já existente, `404` se não encontrado).

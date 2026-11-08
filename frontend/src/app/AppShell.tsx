@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ConnectionStatus } from '../components/feedback/ConnectionStatus';
 import { EmptyState } from '../components/feedback/EmptyState';
 import { useToast } from '../components/feedback/Toast';
 import { Button } from '../components/ui/Button';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { fetchAdminAccountRequests } from '../features/auth/api';
+import { AdminPanelModal } from '../features/auth/components/AdminPanelModal';
+import { ChangePasswordModal } from '../features/auth/components/ChangePasswordModal';
 import { useAuth } from '../features/auth/hooks/useAuth';
 import { ChatHeader } from '../features/conversations/components/ChatHeader';
 import { ConversationDetails } from '../features/conversations/components/ConversationDetails';
@@ -44,6 +48,8 @@ export function AppShell() {
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [newConvOpen, setNewConvOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<ClientMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<ClientMessage | null>(null);
   const [messageToDelete, setMessageToDelete] = useState<ClientMessage | null>(null);
@@ -63,6 +69,16 @@ export function AppShell() {
     conversations,
     isLoading: isLoadingConversations,
   } = useConversations(realtimeClient, user?.id);
+
+  const adminRequestsQuery = useQuery({
+    queryKey: ['admin', 'account-requests'],
+    queryFn: ({ signal }) => fetchAdminAccountRequests(signal),
+    enabled: Boolean(user?.isAdmin),
+    refetchInterval: 20_000,
+  });
+  const pendingAdminRequestsCount = (adminRequestsQuery.data ?? []).filter(
+    (r) => r.status === 'pending',
+  ).length;
 
   const activeConvQuery = useConversationDetail(conversationId, conversations);
   const activeConversation = activeConvQuery.data;
@@ -167,9 +183,12 @@ export function AppShell() {
             isMobile={isMobile}
             theme={theme}
             connectionState={connectionState}
+            pendingAdminRequestsCount={pendingAdminRequestsCount}
             onCycleTheme={cycleTheme}
             onSelectConversation={handleSelectConversation}
             onOpenNewConversation={() => setNewConvOpen(true)}
+            onOpenChangePassword={() => setChangePasswordOpen(true)}
+            onOpenAdminPanel={() => setAdminPanelOpen(true)}
             onLogout={() => {
               void logout();
             }}
@@ -289,6 +308,18 @@ export function AppShell() {
         isCreating={createConvMutation.isPending}
         onClose={() => setNewConvOpen(false)}
         onCreate={handleCreateConversation}
+      />
+
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        onSuccess={() => pushToast(ptBR.auth.passwordChangedSuccess, 'info')}
+      />
+
+      <AdminPanelModal
+        open={adminPanelOpen}
+        isAdmin={Boolean(user.isAdmin)}
+        onClose={() => setAdminPanelOpen(false)}
       />
 
       <ConfirmDialog

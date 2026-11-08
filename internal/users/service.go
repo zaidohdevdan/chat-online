@@ -7,6 +7,7 @@ import (
 type Service struct {
 	repo               *Repository
 	onAccountRequested func(ctx context.Context, req *AccountRequest)
+	onAccountApproved  func(ctx context.Context, createdUser User, requesterIDs []string)
 }
 
 func NewService(repo *Repository) *Service {
@@ -15,6 +16,10 @@ func NewService(repo *Repository) *Service {
 
 func (s *Service) SetOnAccountRequested(fn func(ctx context.Context, req *AccountRequest)) {
 	s.onAccountRequested = fn
+}
+
+func (s *Service) SetOnAccountApproved(fn func(ctx context.Context, createdUser User, requesterIDs []string)) {
+	s.onAccountApproved = fn
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (*User, error) {
@@ -29,8 +34,23 @@ func (s *Service) GetByUsername(ctx context.Context, username string) (*UserReco
 	return s.repo.GetByUsername(ctx, username)
 }
 
+func (s *Service) GetRecordByID(ctx context.Context, id string) (*UserRecord, error) {
+	return s.repo.GetRecordByID(ctx, id)
+}
+
+func (s *Service) UpdatePasswordHash(ctx context.Context, userID, passwordHash string) error {
+	return s.repo.UpdatePasswordHash(ctx, userID, passwordHash)
+}
+
 func (s *Service) CreateUser(ctx context.Context, username, displayName, passwordHash string, avatarURL *string) (*UserRecord, error) {
-	return s.repo.Create(ctx, username, displayName, passwordHash, avatarURL)
+	rec, approvedRequesters, err := s.repo.Create(ctx, username, displayName, passwordHash, avatarURL)
+	if err != nil {
+		return nil, err
+	}
+	if len(approvedRequesters) > 0 && s.onAccountApproved != nil {
+		s.onAccountApproved(ctx, rec.User, approvedRequesters)
+	}
+	return rec, nil
 }
 
 func (s *Service) SearchContacts(ctx context.Context, ownerID, query string, limit int) ([]UserSummary, error) {

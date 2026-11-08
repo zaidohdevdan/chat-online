@@ -276,6 +276,55 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 		t.Fatalf("expected 1 contact (Bob) for Alice after linking, got %d", len(initialContacts.Data))
 	}
 
+	// 4.6 Admin endpoints & Password Change flow:
+	// Non-admin Alice is forbidden from admin endpoints
+	resp, _ = aliceClient.doJSON(http.MethodGet, "/api/v1/admin/account-requests", nil, false)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for non-admin on /admin/account-requests, got %d", resp.StatusCode)
+	}
+
+	// Provision Admin user (daniel.almeida) and approve @novo.amigo via POST /api/v1/admin/users
+	_, err = application.UsersService.CreateUser(ctx, "daniel.almeida", "Daniel de Almeida", hash, nil)
+	if err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+	adminClient := newTestClient(t, srv.URL)
+	resp, _ = adminClient.login("daniel.almeida", "SenhaSegura123!")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("admin login failed: %d", resp.StatusCode)
+	}
+
+	resp, raw = adminClient.doJSON(http.MethodPost, "/api/v1/admin/users", map[string]string{
+		"username":    "novo.amigo",
+		"displayName": "Novo Amigo",
+		"password":    "mudar1234",
+	}, true)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 on admin user creation, got %d: %s", resp.StatusCode, string(raw))
+	}
+
+	// Now Alice automatically has 2 contacts (Bob and Novo Amigo)
+	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/users?query=", nil, false)
+	_ = json.Unmarshal(raw, &initialContacts)
+	if len(initialContacts.Data) != 2 {
+		t.Fatalf("expected 2 contacts for Alice after admin approved @novo.amigo, got %d", len(initialContacts.Data))
+	}
+
+	// Novo Amigo logs in with default password ("mudar1234") and changes their password via POST /api/v1/me/password
+	novoClient := newTestClient(t, srv.URL)
+	resp, _ = novoClient.login("novo.amigo", "mudar1234")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("novo.amigo login with default password failed: %d", resp.StatusCode)
+	}
+	resp, raw = novoClient.doJSON(http.MethodPost, "/api/v1/me/password", map[string]string{
+		"currentPassword": "mudar1234",
+		"newPassword":     "MinhaNovaSenhaForte99!",
+	}, true)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 on password change, got %d: %s", resp.StatusCode, string(raw))
+	}
+
+
 	// 5. Direct conversation creation (201) and uniqueness on repeat (200)
 	resp, raw = aliceClient.doJSON(http.MethodPost, "/api/v1/conversations", map[string]any{
 		"type":      "direct",

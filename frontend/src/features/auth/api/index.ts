@@ -1,5 +1,11 @@
 import { apiRequest, setCsrfToken, type Page } from '../../../lib/http';
-import type { AuthSessionResponse, LoginRequest, User, UserSummary } from '../types';
+import type {
+  AccountRequestItem,
+  AuthSessionResponse,
+  LoginRequest,
+  User,
+  UserSummary,
+} from '../types';
 
 function normalizeSessionPayload(raw: AuthSessionResponse | (User & { csrfToken: string })): User {
   if ('csrfToken' in raw && typeof raw.csrfToken === 'string') {
@@ -14,6 +20,7 @@ function normalizeSessionPayload(raw: AuthSessionResponse | (User & { csrfToken:
     username: rawUser.username,
     displayName: rawUser.displayName,
     avatarUrl: rawUser.avatarUrl,
+    isAdmin: rawUser.isAdmin,
     createdAt: rawUser.createdAt,
   };
 }
@@ -101,6 +108,47 @@ export async function requestUserInvite(
     body: {
       username: username.trim().replace(/^@/, ''),
       displayName: displayName?.trim() || undefined,
+    },
+  });
+}
+
+export async function changeOwnPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await apiRequest<void>('/me/password', {
+    method: 'POST',
+    body: { currentPassword, newPassword },
+  });
+}
+
+export async function fetchAdminAccountRequests(
+  signal?: AbortSignal,
+): Promise<AccountRequestItem[]> {
+  const res = await apiRequest<Page<AccountRequestItem> | AccountRequestItem[]>(
+    '/admin/account-requests',
+    {
+      method: 'GET',
+      signal,
+    },
+  );
+  if (Array.isArray(res)) {
+    return res;
+  }
+  return res.data ?? [];
+}
+
+export async function adminCreateUser(input: {
+  username: string;
+  displayName?: string;
+  password: string;
+}): Promise<User> {
+  return apiRequest<User>('/admin/users', {
+    method: 'POST',
+    body: {
+      username: input.username.trim().replace(/^@/, ''),
+      displayName: input.displayName?.trim() || undefined,
+      password: input.password,
     },
   });
 }

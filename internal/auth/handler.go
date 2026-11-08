@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"chat-online/internal/httpx"
@@ -146,5 +147,106 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		User:      sess.User,
 		CSRFToken: sess.Session.CSRFToken,
 	})
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	sess, ok := SessionFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+
+	var req changePasswordRequest
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	if err := dec.Decode(&req); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "BAD_REQUEST", "JSON inválido")
+		return
+	}
+
+	if err := h.service.ChangePassword(r.Context(), sess.User.ID, req.CurrentPassword, req.NewPassword); err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			httpx.WriteError(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "A senha atual informada está incorreta")
+			return
+		}
+		if errors.Is(err, ErrWeakPassword) {
+			httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "A nova senha deve ter entre 8 e 128 caracteres")
+			return
+		}
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao alterar senha")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) AdminListAccountRequests(w http.ResponseWriter, r *http.Request) {
+	sess, ok := SessionFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+	if !users.IsAdminUsername(sess.User.Username) {
+		httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "Acesso restrito ao administrador")
+		return
+	}
+
+	reqs, err := h.service.ListAccountRequests(r.Context())
+	if err != nil {
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao listar solicitações")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, httpx.Page[users.AccountRequest]{
+		Data:       reqs,
+		NextCursor: nil,
+	})
+}
+
+type adminCreateUserRequest struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+	Password    string `json:"password"`
+}
+
+func (h *Handler) AdminCreateUser(w http.ResponseWriter, r *http.Request) {
+	sess, ok := SessionFromContext(r.Context())
+	if !ok {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "Não autenticado")
+		return
+	}
+	if !users.IsAdminUsername(sess.User.Username) {
+		httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "Acesso restrito ao administrador")
+		return
+	}
+
+	var req adminCreateUserRequest
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	if err := dec.Decode(&req); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "BAD_REQUEST", "JSON inválido")
+		return
+	}
+
+	cleanedUsername := strings.TrimPrefix(strings.TrimSpace(req.Username), "@")
+	if cleanedUsername == "" {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Informe o @username do usuário")
+		return
+	}
+
+	created, err := h.service.AdminCreateOrUpdateUser(r.Context(), cleanedUsername, req.DisplayName, req.Password)
+	if err != nil {
+		if errors.Is(err, ErrWeakPassword) {
+			httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "A senha padrão deve ter pelo menos 8 caracteres")
+			return
+		}
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Erro ao criar conta do usuário")
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusCreated, created)
 }
 

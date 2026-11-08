@@ -217,6 +217,7 @@ export function AppShell() {
           <main id="chat-main-pane" className={styles.mainPane}>
             {!conversationId ? (
               <EmptyState
+                icon="💬"
                 title={ptBR.chat.selectConversationTitle}
                 description={ptBR.chat.selectConversationBody}
                 action={

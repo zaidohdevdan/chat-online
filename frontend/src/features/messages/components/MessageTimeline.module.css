@@ -38,11 +38,13 @@
 }
 
 .dayPill {
-  padding: 2px var(--space-3);
+  padding: 3px var(--space-3);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--color-text-muted);
+  background-color: var(--color-fill);
+  border-radius: var(--radius-pill);
 }
 
 .group {

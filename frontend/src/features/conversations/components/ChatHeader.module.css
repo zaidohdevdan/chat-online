@@ -35,6 +35,15 @@
   flex-shrink: 0;
 }
 
+.actionDanger {
+  color: var(--color-danger) !important;
+}
+
+.actionDanger:hover {
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent) !important;
+  color: var(--color-danger) !important;
+}
+
 .info {
   display: flex;
   flex-direction: column;

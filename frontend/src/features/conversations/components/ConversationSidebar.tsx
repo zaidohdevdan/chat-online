@@ -137,14 +137,15 @@ export function ConversationSidebar({
           <Button
             variant="ghost"
             size="sm"
+            iconOnly
             onClick={onCycleTheme}
             aria-label={`${ptBR.app.themeToggle.changeLabel} (${themeLabel})`}
             title={themeLabel}
           >
-            {theme === 'dark' ? 'Escuro' : theme === 'light' ? 'Claro' : 'Auto'}
+            {theme === 'dark' ? '🌙' : theme === 'light' ? '☀' : '⬤'}
           </Button>
           <Button variant="primary" size="sm" onClick={onOpenNewConversation}>
-            {ptBR.sidebar.newConversation}
+            + {ptBR.sidebar.newConversation}
           </Button>
         </div>
       </div>
@@ -207,6 +208,7 @@ export function ConversationSidebar({
         <div className={styles.list}>
           {conversations.length === 0 ? (
             <EmptyState
+              icon="✉️"
               title={ptBR.sidebar.emptyConversationsTitle}
               description={ptBR.sidebar.emptyConversationsBody}
               action={
@@ -217,6 +219,7 @@ export function ConversationSidebar({
             />
           ) : (
             <EmptyState
+              icon="🔍"
               title={ptBR.sidebar.emptySearchTitle}
               description={ptBR.sidebar.emptySearchBody}
             />
@@ -297,35 +300,40 @@ export function ConversationSidebar({
                 <span className={styles.userHandle}>@{currentUser.username}</span>
               )}
             </div>
+            <BackendStatusBadge realtimeState={connectionState} />
           </div>
-          <BackendStatusBadge realtimeState={connectionState} />
-        </div>
-        <div className={styles.footerActions}>
-          {currentUser.isAdmin && onOpenAdminPanel && (
-            <Button
-              variant={pendingAdminRequestsCount > 0 ? 'tinted' : 'secondary'}
-              size="sm"
-              onClick={onOpenAdminPanel}
+          <div className={styles.footerActions}>
+            {currentUser.isAdmin && onOpenAdminPanel && (
+              <button
+                type="button"
+                className={styles.footerIconBtn}
+                onClick={onOpenAdminPanel}
+                title={ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
+                aria-label={ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
+              >
+                {pendingAdminRequestsCount > 0 ? '🔔' : '⚙'}
+              </button>
+            )}
+            <button
+              type="button"
+              className={styles.footerIconBtn}
+              onClick={onOpenChangePassword}
+              title={ptBR.auth.changePasswordButton}
+              aria-label={ptBR.auth.changePasswordButton}
             >
-              {ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
-            </Button>
-          )}
-          <Button
-            variant="link"
-            size="sm"
-            onClick={onOpenChangePassword}
-          >
-            {ptBR.auth.changePasswordButton}
-          </Button>
-          <Button
-            variant="link"
-            size="sm"
-            onClick={onLogout}
-            loading={isLoggingOut}
-            disabled={isLoggingOut}
-          >
-            {isLoggingOut ? ptBR.auth.loggingOut : ptBR.auth.logout}
-          </Button>
+              🔑
+            </button>
+            <button
+              type="button"
+              className={styles.footerIconBtn}
+              onClick={onLogout}
+              disabled={isLoggingOut}
+              title={ptBR.auth.logout}
+              aria-label={ptBR.auth.logout}
+            >
+              {isLoggingOut ? '…' : '⇥'}
+            </button>
+          </div>
         </div>
       </div>
     </aside>

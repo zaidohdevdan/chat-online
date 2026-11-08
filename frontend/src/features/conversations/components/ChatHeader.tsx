@@ -84,15 +84,17 @@ export function ChatHeader({
 
       <div className={styles.actions}>
         <Button
-          variant="danger"
+          variant="ghost"
           size="sm"
           onClick={onRequestDeleteConversation}
           aria-label={deleteFullLabel}
+          title={deleteFullLabel}
+          className={styles.actionDanger}
         >
-          {isMobile ? 'Apagar' : deleteFullLabel}
+          {isMobile ? '🗑' : deleteFullLabel}
         </Button>
         <Button
-          variant={detailsOpen ? 'tinted' : 'secondary'}
+          variant={detailsOpen ? 'tinted' : 'ghost'}
           size="sm"
           aria-expanded={detailsOpen}
           aria-label={ptBR.chat.toggleDetails}

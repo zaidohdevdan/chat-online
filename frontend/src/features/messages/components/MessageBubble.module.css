@@ -76,6 +76,7 @@
 .bubbleOwn {
   background: var(--bubble-own-bg);
   color: var(--bubble-own-text);
+  box-shadow: 0 1px 3px rgba(0, 100, 220, 0.25);
 }
 
 .bubbleOwn::before {

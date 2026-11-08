@@ -5,11 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"chat-online/internal/httpx"
 )
 
 type Config struct {
@@ -63,12 +66,14 @@ func Load() (*Config, error) {
 	var origins []string
 	for _, o := range strings.Split(originsRaw, ",") {
 		trimmed := strings.TrimSpace(o)
-		if trimmed == "*" {
-			return nil, errors.New("wildcard (*) origin is not allowed in ALLOWED_ORIGINS")
+		if trimmed == "" {
+			continue
 		}
-		if trimmed != "" {
-			origins = append(origins, trimmed)
+		normalized, err := httpx.NormalizeOrigin(trimmed)
+		if err != nil {
+			return nil, fmt.Errorf("ALLOWED_ORIGINS entry %q must be an exact origin like https://app.example.com (wildcards are not allowed)", trimmed)
 		}
+		origins = append(origins, normalized)
 	}
 
 	uploadDir := getEnv("UPLOAD_STORAGE_DIR", "./.data/uploads")

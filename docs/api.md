@@ -24,6 +24,7 @@ Este documento é o contrato REST. Em caso de conflito com outros documentos, el
 
 - `POST /auth/login` e `GET /me` retornam `csrfToken` no corpo.
 - Toda requisição `POST`, `PATCH` e `DELETE` autenticada por cookie deve enviar o header `X-CSRF-Token`. O backend também valida `Origin`.
+- `ALLOWED_ORIGINS` aceita somente origens exatas (`https://app.exemplo.com`). Curingas como `https://*.vercel.app` são rejeitados na inicialização: com cookies e CORS com credenciais, um curinga permitiria que qualquer site daquele domínio agisse como o usuário. A mesma regra vale para o handshake do WebSocket.
 - Falha de login retorna sempre `INVALID_CREDENTIALS`, sem revelar se a conta existe. O endpoint tem rate limit próprio e mais restritivo.
 - Sessão expirada retorna `401` com `SESSION_EXPIRED`.
 

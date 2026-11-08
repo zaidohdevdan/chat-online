@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -171,28 +170,7 @@ func RequireCSRF(allowedOrigins []string) func(http.Handler) http.Handler {
 }
 
 func isAllowedOrigin(origin, host string, allowedOrigins []string) bool {
-	parsedOrigin, err := url.Parse(origin)
-	for _, allowed := range allowedOrigins {
-		if strings.EqualFold(origin, allowed) {
-			return true
-		}
-		// Support subdomain patterns like https://*.vercel.app
-		if err == nil && strings.Contains(allowed, "*.") {
-			if parsedAllowed, aErr := url.Parse(strings.Replace(allowed, "*.", "", 1)); aErr == nil {
-				suffix := "." + strings.ToLower(parsedAllowed.Host)
-				if strings.EqualFold(parsedOrigin.Scheme, parsedAllowed.Scheme) &&
-					strings.HasSuffix(strings.ToLower(parsedOrigin.Host), suffix) {
-					return true
-				}
-			}
-		}
-	}
-	if err == nil {
-		if strings.EqualFold(parsedOrigin.Host, host) {
-			return true
-		}
-	}
-	return false
+	return httpx.OriginAllowed(origin, host, allowedOrigins)
 }
 
 type bucket struct {
@@ -271,4 +249,3 @@ func extractClientKey(r *http.Request) string {
 	}
 	return "ip:" + r.RemoteAddr
 }
-

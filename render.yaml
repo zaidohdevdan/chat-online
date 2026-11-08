@@ -18,5 +18,5 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: ALLOWED_ORIGINS
-        value: https://*.vercel.app
+        value: https://chat-online-zeta.vercel.app
 

@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
 
 	"chat-online/internal/auth"
+	"chat-online/internal/httpx"
 	"chat-online/internal/metrics"
 
 	"github.com/coder/websocket"
@@ -235,29 +235,10 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) isOriginAllowed(r *http.Request) bool {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
+		// Non-browser clients do not send Origin; they still need a valid session cookie.
 		return true
 	}
-	parsedOrigin, err := url.Parse(origin)
-	for _, allowed := range h.allowedOrigins {
-		if strings.EqualFold(origin, allowed) {
-			return true
-		}
-		if err == nil && strings.Contains(allowed, "*.") {
-			if parsedAllowed, aErr := url.Parse(strings.Replace(allowed, "*.", "", 1)); aErr == nil {
-				suffix := "." + strings.ToLower(parsedAllowed.Host)
-				if strings.EqualFold(parsedOrigin.Scheme, parsedAllowed.Scheme) &&
-					strings.HasSuffix(strings.ToLower(parsedOrigin.Host), suffix) {
-					return true
-				}
-			}
-		}
-	}
-	if err == nil {
-		if strings.EqualFold(parsedOrigin.Host, r.Host) {
-			return true
-		}
-	}
-	return false
+	return httpx.OriginAllowed(origin, r.Host, h.allowedOrigins)
 }
 
 func (h *Hub) registerClient(c *clientConn) bool {
@@ -605,4 +586,3 @@ func (h *Hub) userIsMember(ctx context.Context, conversationID, userID string) b
 	`, conversationID, userID).Scan(&exists)
 	return err == nil && exists
 }
-

@@ -16,6 +16,7 @@
     --color-danger: #ff6961;
     --color-danger-subtle: rgba(255, 105, 97, 0.18);
     --color-success: #4cc380;
+    --color-success-subtle: rgba(76, 195, 128, 0.18);
     --color-warning: #ffb340;
     --color-warning-subtle: rgba(255, 179, 64, 0.18);
     --focus-ring: 0 0 0 3px rgba(74, 163, 245, 0.45);

@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react';
+import { BackendStatusBadge } from '../../../components/feedback/ConnectionStatus';
 import { Button } from '../../../components/ui/Button';
 import { ApiError } from '../../../lib/http';
 import { ptBR } from '../../../lib/i18n';
@@ -43,6 +44,9 @@ export function LoginView() {
     <main className={styles.container}>
       <section className={styles.card} aria-labelledby="login-heading">
         <header className={styles.header}>
+          <div className={styles.statusRow}>
+            <BackendStatusBadge />
+          </div>
           <h1 id="login-heading" className={styles.title}>
             {ptBR.auth.loginTitle}
           </h1>

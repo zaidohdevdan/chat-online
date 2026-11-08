@@ -166,6 +166,7 @@ export function AppShell() {
             isLoading={isLoadingConversations}
             isMobile={isMobile}
             theme={theme}
+            connectionState={connectionState}
             onCycleTheme={cycleTheme}
             onSelectConversation={handleSelectConversation}
             onOpenNewConversation={() => setNewConvOpen(true)}

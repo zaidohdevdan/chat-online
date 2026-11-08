@@ -13,6 +13,10 @@ export const ptBR = {
     connected: 'Conectado',
     reconnecting: 'Reconectando…',
     offline: 'Sem conexão — tentando reconectar',
+    backendOnline: 'Backend online',
+    backendChecking: 'Verificando servidor…',
+    backendOffline: 'Backend offline',
+    backendCheckAction: 'Verificar conexão com o servidor novamente',
   },
   auth: {
     loginTitle: 'Entrar no Chat',

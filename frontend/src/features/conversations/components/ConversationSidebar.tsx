@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { BackendStatusBadge } from '../../../components/feedback/ConnectionStatus';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Avatar } from '../../../components/ui/Avatar';
 import { Button } from '../../../components/ui/Button';
@@ -6,6 +7,7 @@ import { Spinner } from '../../../components/ui/Spinner';
 import type { ThemePreference } from '../../../hooks/useTheme';
 import { formatConversationTimestamp } from '../../../lib/format';
 import { ptBR } from '../../../lib/i18n';
+import type { ConnectionState } from '../../../lib/realtime';
 import type { User } from '../../auth/types';
 import type { UserPresence } from '../../presence/types';
 import { getConversationDisplayInfo } from '../api';
@@ -19,6 +21,7 @@ export interface ConversationSidebarProps {
   isLoading: boolean;
   isMobile: boolean;
   theme: ThemePreference;
+  connectionState?: ConnectionState;
   onCycleTheme: () => void;
   onSelectConversation: (conversationId: string) => void;
   onOpenNewConversation: () => void;
@@ -35,6 +38,7 @@ export function ConversationSidebar({
   isLoading,
   isMobile,
   theme,
+  connectionState,
   onCycleTheme,
   onSelectConversation,
   onOpenNewConversation,
@@ -282,14 +286,17 @@ export function ConversationSidebar({
           />
           <span className={styles.userName}>{currentUser.displayName}</span>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLogout}
-          disabled={isLoggingOut}
-        >
-          {isLoggingOut ? ptBR.auth.loggingOut : ptBR.auth.logout}
-        </Button>
+        <div className={styles.headerActions}>
+          <BackendStatusBadge realtimeState={connectionState} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLogout}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? ptBR.auth.loggingOut : ptBR.auth.logout}
+          </Button>
+        </div>
       </div>
     </aside>
   );

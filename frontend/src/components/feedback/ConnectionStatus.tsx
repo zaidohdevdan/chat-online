@@ -1,5 +1,6 @@
-import type { ConnectionState } from '../../lib/realtime';
+import { useBackendStatus, type BackendReachability } from '../../hooks/useBackendStatus';
 import { ptBR } from '../../lib/i18n';
+import type { ConnectionState } from '../../lib/realtime';
 import styles from './ConnectionStatus.module.css';
 
 export interface ConnectionStatusProps {
@@ -28,3 +29,40 @@ export function ConnectionStatus({ state }: ConnectionStatusProps) {
   );
 }
 
+export interface BackendStatusBadgeProps {
+  realtimeState?: ConnectionState;
+}
+
+export function BackendStatusBadge({ realtimeState }: BackendStatusBadgeProps) {
+  const { status, recheck } = useBackendStatus(realtimeState);
+
+  const labelMap: Record<BackendReachability, string> = {
+    online: ptBR.connection.backendOnline,
+    checking: ptBR.connection.backendChecking,
+    offline: ptBR.connection.backendOffline,
+  };
+
+  const stateClass =
+    status === 'online'
+      ? styles.badgeOnline
+      : status === 'checking'
+        ? styles.badgeChecking
+        : styles.badgeOffline;
+
+  return (
+    <button
+      type="button"
+      role="status"
+      aria-live="polite"
+      aria-label={`${labelMap[status]}. ${ptBR.connection.backendCheckAction}`}
+      title={ptBR.connection.backendCheckAction}
+      onClick={() => {
+        void recheck();
+      }}
+      className={`${styles.badge} ${stateClass}`}
+    >
+      <span className={styles.led} aria-hidden="true" />
+      <span>{labelMap[status]}</span>
+    </button>
+  );
+}

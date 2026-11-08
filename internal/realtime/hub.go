@@ -34,17 +34,29 @@ type clientConn struct {
 	userID     string
 	ws         *websocket.Conn
 	sendCh     chan []byte
+	done       chan struct{} // closed once; signals the connection is closing
 	closeOnce  sync.Once
 	lastTyping map[string]time.Time
 	typingMu   sync.Mutex
 }
 
+// enqueue delivers a frame to the client's send buffer without blocking.
+// Returns false when the connection is already closed or the buffer is full.
+// It never panics, even if called concurrently with close().
 func (c *clientConn) enqueue(frame []byte) bool {
+	select {
+	case <-c.done:
+		// Connection already closing; drop the frame silently.
+		return false
+	default:
+	}
 	select {
 	case c.sendCh <- frame:
 		return true
+	case <-c.done:
+		return false
 	default:
-		// Slow consumer: close connection to force client sync.resume per docs/events.md section 6.
+		// Slow consumer: close connection so the client must sync.resume.
 		c.close(websocket.StatusPolicyViolation, "slow consumer buffer full")
 		return false
 	}
@@ -52,7 +64,7 @@ func (c *clientConn) enqueue(frame []byte) bool {
 
 func (c *clientConn) close(code websocket.StatusCode, reason string) {
 	c.closeOnce.Do(func() {
-		close(c.sendCh)
+		close(c.done) // signal first so enqueue sees the closed channel
 		_ = c.ws.Close(code, reason)
 	})
 }
@@ -196,6 +208,7 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 		userID:     sess.User.ID,
 		ws:         ws,
 		sendCh:     make(chan []byte, clientSendBuffer),
+		done:       make(chan struct{}),
 		lastTyping: make(map[string]time.Time),
 	}
 
@@ -274,10 +287,9 @@ func (h *Hub) writePump(ctx context.Context, c *clientConn) {
 		select {
 		case <-ctx.Done():
 			return
-		case msg, ok := <-c.sendCh:
-			if !ok {
-				return
-			}
+		case <-c.done:
+			return
+		case msg := <-c.sendCh:
 			writeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			err := c.ws.Write(writeCtx, websocket.MessageText, msg)
 			cancel()

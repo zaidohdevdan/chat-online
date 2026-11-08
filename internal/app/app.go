@@ -22,6 +22,7 @@ import (
 	"chat-online/internal/users"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -118,6 +119,7 @@ func (a *Application) buildRouter(
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
+	r.Use(chimiddleware.Recoverer) // R2: catch any residual panic and return 500 instead of crashing
 	r.Use(middleware.SecurityHeaders(a.Config.AllowedOrigins, a.Config.SecureCookies))
 	r.Use(middleware.StructuredLogger)
 
@@ -399,4 +401,3 @@ func (a *Application) seedStarterConversationsForUser(ctx context.Context, targe
 		}
 	}
 }
-

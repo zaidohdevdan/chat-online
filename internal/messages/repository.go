@@ -471,27 +471,9 @@ func (r *Repository) DeleteMessage(ctx context.Context, messageID, userID, scope
 		FOR UPDATE
 	`, messageID).Scan(&convID, &senderID, &deletedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		if scope == "me" {
-			return nil, nil
-		}
-		if conversationIDHint != "" {
-			if _, parseErr := uuid.Parse(conversationIDHint); parseErr == nil {
-				var isMember bool
-				if mErr := tx.QueryRow(ctx, `
-					SELECT EXISTS(SELECT 1 FROM conversation_members WHERE conversation_id = $1 AND user_id = $2)
-				`, conversationIDHint, userID).Scan(&isMember); mErr == nil && isMember {
-					now := time.Now().UTC()
-					env, eErr := realtime.AppendDurableEvent(ctx, tx, conversationIDHint, "message.deleted", map[string]any{
-						"messageId":  messageID,
-						"deletedAt":  now.Format(time.RFC3339Nano),
-						"hardDelete": true,
-					})
-					if eErr == nil && tx.Commit(ctx) == nil {
-						return env, nil
-					}
-				}
-			}
-		}
+		// S2-fix: without the message row we cannot verify authorship,
+		// so refuse the operation for all scopes.  The "scope=me" soft-hide
+		// also requires an existing row (message_hidden_for FK).
 		return nil, ErrMessageNotFound
 	}
 	if err != nil {
@@ -785,4 +767,3 @@ func (r *Repository) computeAggregatedStatus(
 	}
 	return "sent", nil
 }
-

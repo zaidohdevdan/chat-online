@@ -111,7 +111,7 @@ Regras do `status`:
 |---|---|---|
 | POST | `/conversations/{id}/messages` | Envia mensagem (pacote cifrado E2EE `AES-256-GCM` + `ECDH/HKDF`) |
 | PATCH | `/messages/{id}` | Edita o corpo (apenas o autor) |
-| DELETE | `/messages/{id}?scope=all\|me` | Apaga a mensagem: `scope=me` apaga apenas para o usuário atual; `scope=all` (padrão do autor) apaga permanentemente (hard delete) para todos |
+| DELETE | `/messages/{id}?scope=all\|me` | Apaga a mensagem: `scope=me` oculta somente para o usuário atual (soft-hide); `scope=all` apaga permanentemente para todos — **exige autoria**: apenas o remetente original pode usar este escopo. Retorna `403` se outro membro tentar. Se a mensagem não existir no banco, retorna `404` em ambos os escopos. |
 
 - **Privacidade e Fila Efêmera (Signal Queue)**: As mensagens são cifradas ponta a ponta no cliente (`Web Crypto API`: `ECDH P-256` + `HKDF-SHA256` + `AES-256-GCM`) e mantidas no banco apenas como fila de entrega para destinatários offline. Assim que todos os destinatários da conversa confirmam o recebimento (`message.ack`), a mensagem é removida do banco de dados; o histórico permanece apenas no dispositivo local de cada usuário.
 - Edição e exclusão para todos geram os eventos `message.updated` e `message.deleted`. A exclusão em grupo gera `conversation.deleted`.

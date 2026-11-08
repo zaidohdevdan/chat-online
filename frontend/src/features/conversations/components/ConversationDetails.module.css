@@ -11,12 +11,12 @@
 
 .mobileOverlay {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   width: 100%;
-  max-width: 340px;
+  max-width: 100%;
   z-index: 80;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
   box-shadow: var(--shadow-popover);
 }
 

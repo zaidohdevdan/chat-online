@@ -335,11 +335,12 @@ export function MessageComposer({
             <Button
               variant="secondary"
               size="md"
+              iconOnly={isMobile}
               onClick={() => fileInputRef.current?.click()}
               aria-label={ptBR.composer.attachButton}
               title={ptBR.composer.attachButton}
             >
-              + Anexo
+              {isMobile ? '+' : '+ Anexo'}
             </Button>
           </>
         )}
@@ -372,18 +373,20 @@ export function MessageComposer({
         </Button>
       </div>
 
-      <div className={styles.footerRow}>
-        {errorMessage ? (
-          <span role="alert" className={styles.errorText}>
-            {errorMessage}
+      {(!isMobile || errorMessage || body.length > 3500) && (
+        <div className={styles.footerRow}>
+          {errorMessage ? (
+            <span role="alert" className={styles.errorText}>
+              {errorMessage}
+            </span>
+          ) : (
+            <span>{!isMobile ? ptBR.composer.sendHintDesktop : ''}</span>
+          )}
+          <span>
+            {body.length}/{MAX_MESSAGE_BODY_LENGTH}
           </span>
-        ) : (
-          <span>{!isMobile ? ptBR.composer.sendHintDesktop : ''}</span>
-        )}
-        <span>
-          {body.length}/{MAX_MESSAGE_BODY_LENGTH}
-        </span>
-      </div>
+        </div>
+      )}
     </form>
   );
 }

@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
+  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
   background-color: var(--color-surface);
   border-top: 1px solid var(--color-border);
   flex-shrink: 0;
@@ -102,5 +103,18 @@
 .errorText {
   color: var(--color-danger);
   font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .composer {
+    padding: var(--space-2) var(--space-3);
+    padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+  }
+
+  .textarea {
+    min-height: 38px;
+    border-radius: var(--radius-lg);
+    padding: var(--space-2) var(--space-3);
+  }
 }
 

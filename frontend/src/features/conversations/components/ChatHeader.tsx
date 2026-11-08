@@ -48,53 +48,59 @@ export function ChatHeader({
     subtitleText = ptBR.chat.lastSeen(formatMessageTime(peerPresence.lastSeenAt));
   }
 
+  const e2eeLabel = isMobile ? '🔒 E2EE' : ptBR.chat.e2eeBadge;
+  const deleteFullLabel =
+    conversation.type === 'group'
+      ? ptBR.chat.deleteConversationGroupButton
+      : ptBR.chat.deleteConversationDirectButton;
+
   return (
     <header className={styles.header}>
       <div className={styles.left}>
         {isMobile && (
           <Button
-            variant="ghost"
+            variant="link"
             size="sm"
+            className={styles.backBtn}
             onClick={onBackToList}
             aria-label={ptBR.chat.backToList}
           >
-            ← Conversas
+            ‹ Voltar
           </Button>
         )}
         <Avatar
           name={title}
           avatarUrl={avatarUrl}
-          size="md"
+          size={isMobile ? 'sm' : 'md'}
           presence={peerPresence?.status}
         />
         <div className={styles.info}>
           <h2 className={styles.title}>{title}</h2>
           <span className={isOnline ? styles.subtitleOnline : styles.subtitle}>
-            {subtitleText ? `${subtitleText} · ${ptBR.chat.e2eeBadge}` : ptBR.chat.e2eeBadge}
+            {subtitleText ? `${subtitleText} · ${e2eeLabel}` : e2eeLabel}
           </span>
         </div>
       </div>
 
-      <div className={styles.left}>
+      <div className={styles.actions}>
         <Button
           variant="danger"
           size="sm"
           onClick={onRequestDeleteConversation}
+          aria-label={deleteFullLabel}
         >
-          {conversation.type === 'group'
-            ? ptBR.chat.deleteConversationGroupButton
-            : ptBR.chat.deleteConversationDirectButton}
+          {isMobile ? 'Apagar' : deleteFullLabel}
         </Button>
         <Button
-          variant={detailsOpen ? 'secondary' : 'ghost'}
+          variant={detailsOpen ? 'tinted' : 'secondary'}
           size="sm"
           aria-expanded={detailsOpen}
+          aria-label={ptBR.chat.toggleDetails}
           onClick={onToggleDetails}
         >
-          {ptBR.chat.toggleDetails}
+          {isMobile ? 'Info' : ptBR.chat.toggleDetails}
         </Button>
       </div>
     </header>
   );
 }
-

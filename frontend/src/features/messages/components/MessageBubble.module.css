@@ -164,3 +164,13 @@
   white-space: nowrap;
 }
 
+@media (max-width: 768px) {
+  .row {
+    max-width: 88%;
+  }
+
+  .actionBtn {
+    padding: var(--space-1) var(--space-2);
+  }
+}
+

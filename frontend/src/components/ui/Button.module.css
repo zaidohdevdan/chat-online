@@ -113,6 +113,23 @@
   border-radius: var(--radius-pill);
 }
 
+@media (max-width: 768px) {
+  .sizeSm {
+    min-height: 34px;
+    padding: 0 var(--space-3);
+  }
+
+  .sizeMd {
+    min-height: 44px;
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .iconOnly {
+    width: 38px;
+    height: 38px;
+  }
+}
+
 .spinner {
   width: 13px;
   height: 13px;

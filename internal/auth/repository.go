@@ -98,4 +98,3 @@ func (r *Repository) DeleteExpired(ctx context.Context) (int64, error) {
 	}
 	return tag.RowsAffected(), nil
 }
-

@@ -246,4 +246,3 @@ func deriveDisplayName(username string) string {
 	}
 	return strings.Join(parts, " ")
 }
-

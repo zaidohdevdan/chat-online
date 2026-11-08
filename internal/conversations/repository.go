@@ -25,27 +25,27 @@ var (
 )
 
 type MessagePreview struct {
-	ID               string           `json:"id"`
-	ConversationID   string           `json:"conversationId"`
+	ID               string            `json:"id"`
+	ConversationID   string            `json:"conversationId"`
 	Sender           users.UserSummary `json:"sender"`
-	Body             *string          `json:"body"`
-	Attachments      []uploads.Upload `json:"attachments"`
-	ReplyToMessageID *string          `json:"replyToMessageId,omitempty"`
-	CreatedAt        time.Time        `json:"createdAt"`
-	EditedAt         *time.Time       `json:"editedAt,omitempty"`
-	DeletedAt        *time.Time       `json:"deletedAt,omitempty"`
-	Status           *string          `json:"status,omitempty"`
+	Body             *string           `json:"body"`
+	Attachments      []uploads.Upload  `json:"attachments"`
+	ReplyToMessageID *string           `json:"replyToMessageId,omitempty"`
+	CreatedAt        time.Time         `json:"createdAt"`
+	EditedAt         *time.Time        `json:"editedAt,omitempty"`
+	DeletedAt        *time.Time        `json:"deletedAt,omitempty"`
+	Status           *string           `json:"status,omitempty"`
 }
 
 type Conversation struct {
-	ID                string            `json:"id"`
-	Type              string            `json:"type"`
-	Title             *string           `json:"title,omitempty"`
+	ID                string              `json:"id"`
+	Type              string              `json:"type"`
+	Title             *string             `json:"title,omitempty"`
 	Members           []users.UserSummary `json:"members"`
-	LastMessage       *MessagePreview   `json:"lastMessage,omitempty"`
-	UnreadCount       int               `json:"unreadCount"`
-	LastReadMessageID *string           `json:"lastReadMessageId,omitempty"`
-	UpdatedAt         time.Time         `json:"updatedAt"`
+	LastMessage       *MessagePreview     `json:"lastMessage,omitempty"`
+	UnreadCount       int                 `json:"unreadCount"`
+	LastReadMessageID *string             `json:"lastReadMessageId,omitempty"`
+	UpdatedAt         time.Time           `json:"updatedAt"`
 }
 
 type Repository struct {
@@ -603,4 +603,3 @@ func queryMembersTx(ctx context.Context, tx pgx.Tx, conversationID string) ([]us
 	}
 	return members, rows.Err()
 }
-

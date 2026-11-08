@@ -75,4 +75,3 @@ type Page[T any] struct {
 	Data       []T     `json:"data"`
 	NextCursor *string `json:"nextCursor"`
 }
-

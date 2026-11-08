@@ -88,4 +88,3 @@ func (h *Handler) Download(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, rc)
 }
-

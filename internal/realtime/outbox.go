@@ -183,4 +183,3 @@ func CountPendingOutbox(ctx context.Context, pool *pgxpool.Pool) int64 {
 	_ = pool.QueryRow(ctx, `SELECT COUNT(*) FROM events WHERE published_at IS NULL`).Scan(&count)
 	return count
 }
-

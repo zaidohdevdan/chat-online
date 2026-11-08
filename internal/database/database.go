@@ -65,4 +65,3 @@ func runMigrations(pool *pgxpool.Pool) error {
 	}
 	return goose.Up(sqlDB, ".")
 }
-

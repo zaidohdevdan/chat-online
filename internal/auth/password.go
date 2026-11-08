@@ -70,4 +70,3 @@ func VerifyPassword(password, encodedHash string) bool {
 	computed := argon2.IDKey([]byte(password), salt, timeCost, memory, threads, uint32(len(expectedHash)))
 	return subtle.ConstantTimeCompare(computed, expectedHash) == 1
 }
-

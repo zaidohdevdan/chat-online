@@ -281,4 +281,3 @@ func (h *Handler) AdminCreateUser(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusCreated, created)
 }
-

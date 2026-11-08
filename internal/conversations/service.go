@@ -123,4 +123,3 @@ func (s *Service) Delete(ctx context.Context, conversationID, userID string) err
 	}
 	return nil
 }
-

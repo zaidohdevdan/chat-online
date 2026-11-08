@@ -105,4 +105,3 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*AttachmentRecord,
 	}
 	return &rec, nil
 }
-

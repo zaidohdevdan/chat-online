@@ -93,4 +93,3 @@ func NewEphemeralEnvelope(conversationID *string, eventType string, data any) (*
 		Data:           payloadBytes,
 	}, nil
 }
-

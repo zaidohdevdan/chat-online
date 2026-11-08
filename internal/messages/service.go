@@ -147,4 +147,3 @@ func (s *Service) Delete(ctx context.Context, messageID, userID, scope, conversa
 func (s *Service) RecordDeliveryAck(ctx context.Context, userID, messageID string) (*realtime.Envelope, error) {
 	return s.repo.RecordDeliveryAck(ctx, userID, messageID)
 }
-

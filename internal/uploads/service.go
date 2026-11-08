@@ -23,13 +23,13 @@ var (
 )
 
 var allowedMimeExtensions = map[string][]string{
-	"image/png":                {".png"},
-	"image/jpeg":               {".jpg", ".jpeg"},
-	"image/gif":                {".gif"},
-	"image/webp":               {".webp"},
-	"application/pdf":          {".pdf"},
+	"image/png":                 {".png"},
+	"image/jpeg":                {".jpg", ".jpeg"},
+	"image/gif":                 {".gif"},
+	"image/webp":                {".webp"},
+	"application/pdf":           {".pdf"},
 	"text/plain; charset=utf-8": {".txt", ".md", ".csv", ".log"},
-	"text/plain":               {".txt", ".md", ".csv", ".log"},
+	"text/plain":                {".txt", ".md", ".csv", ".log"},
 }
 
 type MembershipChecker interface {
@@ -144,4 +144,3 @@ func sanitizeFileName(name string) string {
 	}
 	return base
 }
-

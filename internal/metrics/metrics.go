@@ -54,4 +54,3 @@ func (c *Collector) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 		"outboxPendingEventsSize": c.OutboxPendingSize.Load(),
 	})
 }
-

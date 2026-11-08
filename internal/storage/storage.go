@@ -88,4 +88,3 @@ func (s *LocalStorage) Delete(_ context.Context, key string) error {
 	}
 	return err
 }
-

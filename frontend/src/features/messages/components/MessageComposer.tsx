@@ -10,6 +10,7 @@ import {
 import { Button } from '../../../components/ui/Button';
 import { formatFileSize } from '../../../lib/format';
 import { ptBR } from '../../../lib/i18n';
+import { EncryptionError } from '../../../lib/e2ee';
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_MESSAGE_BODY_LENGTH,
@@ -207,8 +208,15 @@ export function MessageComposer({
         replyToMessageId: currentReplyId,
         attachments: uploadedAttachments,
       });
-    } catch {
-      // Optimistic message handles failure display & retry in timeline
+    } catch (err) {
+      // EncryptionError: show the reason in the composer so the user knows
+      // the message was NOT sent (no optimistic bubble was created yet).
+      if (err instanceof EncryptionError) {
+        setErrorMessage(err.message);
+        // Restore body so the user can retry after the other party registers a key.
+        setBody(currentBody);
+      }
+      // Other errors: optimistic message already marked as 'failed' in the timeline.
     }
   };
 

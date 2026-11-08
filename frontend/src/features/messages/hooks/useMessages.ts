@@ -5,7 +5,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query';
-import { decryptMessageBody, encryptMessageBody } from '../../../lib/e2ee';
+import { decryptMessageBody, encryptMessageBody, EncryptionError } from '../../../lib/e2ee';
 import type { Page } from '../../../lib/http';
 import { generateClientMessageId } from '../../../lib/ids';
 import type { RealtimeClient, ServerEventMap } from '../../../lib/realtime';
@@ -431,6 +431,18 @@ export function useMessages(params: {
       } catch (err) {
         setOptimisticByConv((prev) => {
           const list = prev[targetConversationId] ?? [];
+          // EncryptionError: the message was never sent — remove the optimistic
+          // bubble entirely so the user doesn't see a ghost 'failed' message.
+          // The composer will show the error and restore the draft.
+          if (err instanceof EncryptionError) {
+            return {
+              ...prev,
+              [targetConversationId]: list.filter(
+                (item) => item.message.clientMessageId !== clientMessageId,
+              ),
+            };
+          }
+          // Network/server errors: mark as failed so the user can retry.
           return {
             ...prev,
             [targetConversationId]: list.map((item) =>

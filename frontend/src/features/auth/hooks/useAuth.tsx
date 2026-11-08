@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, onSessionExpired, setCsrfToken } from '../../../lib/http';
-import { ensureUserIdentityPublicKey } from '../../../lib/e2ee';
+import { ensureUserIdentityPublicKey, clearIdentityKeys } from '../../../lib/e2ee';
 import { defaultRealtimeClient, type RealtimeClient } from '../../../lib/realtime';
 import {
   fetchCurrentUser,
@@ -97,6 +97,15 @@ export function AuthProvider({
       setSessionExpired(false);
       realtimeClient.resetAll();
       queryClient.clear();
+
+      // 1C: wipe all local sensitive data so the next user of this device
+      // cannot read messages or reuse the identity key.
+      void clearIdentityKeys(); // IndexedDB crypto keys (non-extractable)
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('chat_online_')) {
+          localStorage.removeItem(key);
+        }
+      }
     },
   });
 

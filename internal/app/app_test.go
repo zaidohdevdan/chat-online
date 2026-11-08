@@ -303,11 +303,24 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 		t.Fatalf("expected 201 on admin user creation, got %d: %s", resp.StatusCode, string(raw))
 	}
 
-	// Now Alice automatically has 2 contacts (Bob and Novo Amigo)
-	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/users?query=", nil, false)
+	// Once created, the account request must be removed from the admin panel list
+	resp, raw = adminClient.doJSON(http.MethodGet, "/api/v1/admin/account-requests", nil, false)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on GET /api/v1/admin/account-requests, got %d", resp.StatusCode)
+	}
+	var adminReqs struct {
+		Data []map[string]any `json:"data"`
+	}
+	_ = json.Unmarshal(raw, &adminReqs)
+	if len(adminReqs.Data) != 0 {
+		t.Fatalf("expected 0 pending account requests after approval, got %d", len(adminReqs.Data))
+	}
+
+	// Now Alice automatically has Novo Amigo linked in her contacts (along with Bob and the Admin who sent the confirmation)
+	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/users?query=novo.amigo", nil, false)
 	_ = json.Unmarshal(raw, &initialContacts)
-	if len(initialContacts.Data) != 2 {
-		t.Fatalf("expected 2 contacts for Alice after admin approved @novo.amigo, got %d", len(initialContacts.Data))
+	if len(initialContacts.Data) != 1 {
+		t.Fatalf("expected @novo.amigo in Alice's contacts after admin approved, got %d", len(initialContacts.Data))
 	}
 
 	// Novo Amigo logs in with default password ("mudar1234") and changes their password via POST /api/v1/me/password

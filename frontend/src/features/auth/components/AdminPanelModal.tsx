@@ -38,13 +38,24 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
   const createMutation = useMutation({
     mutationFn: (input: { username: string; displayName?: string; password: string }) =>
       adminCreateUser(input),
-    onSuccess: (createdUser) => {
+    onSuccess: (createdUser, variables) => {
       setErrorMsg(null);
+      const provisionedHandle = (createdUser.username ?? variables.username)
+        .trim()
+        .replace(/^@/, '')
+        .toLowerCase();
       setFeedback(ptBR.admin.accountCreatedSuccess(createdUser.username ?? createdUser.displayName));
       if (activeActionId === 'manual') {
         setManualUsername('');
         setManualDisplayName('');
       }
+      queryClient.setQueryData<AccountRequestItem[]>(
+        ['admin', 'account-requests'],
+        (old) =>
+          (old ?? []).filter(
+            (r) => r.requestedUsername.trim().replace(/^@/, '').toLowerCase() !== provisionedHandle,
+          ),
+      );
       void queryClient.invalidateQueries({ queryKey: ['admin', 'account-requests'] });
       void queryClient.invalidateQueries({ queryKey: ['users', 'search'] });
     },

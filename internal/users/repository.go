@@ -122,16 +122,19 @@ func (r *Repository) Create(ctx context.Context, username, displayName, password
 
 	var approvedRequesterIDs []string
 	rows, qErr := r.pool.Query(ctx, `
-		UPDATE account_requests
-		SET status = 'approved'
-		WHERE LOWER(requested_username) = $1 AND status = 'pending'
-		RETURNING DISTINCT requester_id::text
+		DELETE FROM account_requests
+		WHERE LOWER(requested_username) = $1
+		RETURNING requester_id::text
 	`, normalized)
 	if qErr == nil {
+		seen := make(map[string]struct{})
 		for rows.Next() {
 			var reqID string
 			if err := rows.Scan(&reqID); err == nil {
-				approvedRequesterIDs = append(approvedRequesterIDs, reqID)
+				if _, exists := seen[reqID]; !exists {
+					seen[reqID] = struct{}{}
+					approvedRequesterIDs = append(approvedRequesterIDs, reqID)
+				}
 			}
 		}
 		rows.Close()
@@ -536,10 +539,18 @@ func (r *Repository) CreateAccountRequest(ctx context.Context, requesterID, requ
 }
 
 func (r *Repository) ListAccountRequests(ctx context.Context) ([]AccountRequest, error) {
+	// Purge any stale requests whose username has already been provisioned in users
+	_, _ = r.pool.Exec(ctx, `
+		DELETE FROM account_requests ar
+		USING users u
+		WHERE LOWER(ar.requested_username) = LOWER(u.username)
+	`)
+
 	rows, err := r.pool.Query(ctx, `
 		SELECT ar.id::text, ar.requester_id::text, u.username, u.display_name, ar.requested_username, ar.requested_display_name, ar.status, ar.created_at
 		FROM account_requests ar
 		JOIN users u ON u.id = ar.requester_id
+		WHERE ar.status = 'pending'
 		ORDER BY ar.created_at DESC
 		LIMIT 100
 	`)

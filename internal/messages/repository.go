@@ -586,17 +586,11 @@ func (r *Repository) RecordDeliveryAck(ctx context.Context, userID, messageID st
 			(SELECT COUNT(*) FROM message_deliveries WHERE message_id = $3)
 	`, convID, senderID, messageID).Scan(&totalRecipients, &deliveredRecipients)
 
-	// Signal ephemeral queue: once all recipients have received the message, purge it from PostgreSQL
-	if totalRecipients > 0 && deliveredRecipients >= totalRecipients {
-		_, _ = tx.Exec(ctx, `DELETE FROM attachments WHERE message_id = $1`, messageID)
-		_, _ = tx.Exec(ctx, `DELETE FROM messages WHERE id = $1`, messageID)
-		_, _ = tx.Exec(ctx, `
-			DELETE FROM events
-			WHERE conversation_id = $1
-			  AND type = 'message.created'
-			  AND payload->'message'->>'id' = $2
-		`, convID, messageID)
-	}
+	// R1-fix: do NOT purge the message or attachments after delivery.
+	// Deleting rows on delivery caused: attachment 404s, empty history for
+	// new devices, read-status regression, and incorrect unread counts.
+	// The delivery tracking rows (message_deliveries) are kept so that the
+	// aggregated status (sent/delivered/read) still works correctly.
 
 	now := time.Now().UTC()
 	env, err := realtime.AppendDurableEvent(ctx, tx, convID, "message.delivered", map[string]any{

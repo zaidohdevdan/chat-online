@@ -269,7 +269,6 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 		t.Fatalf("expected 201 on invite request, got %d: %s", resp.StatusCode, string(raw))
 	}
 
-
 	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/users?query=", nil, false)
 	_ = json.Unmarshal(raw, &initialContacts)
 	if len(initialContacts.Data) != 1 {
@@ -336,7 +335,6 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204 on password change, got %d: %s", resp.StatusCode, string(raw))
 	}
-
 
 	// 5. Direct conversation creation (201) and uniqueness on repeat (200)
 	resp, raw = aliceClient.doJSON(http.MethodPost, "/api/v1/conversations", map[string]any{
@@ -575,25 +573,25 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 		t.Fatalf("expected 204 publishing E2EE public key, got %d: %s", resp.StatusCode, string(raw))
 	}
 
-	// Send an E2EE message and verify Signal Ephemeral Queue purges it once Bob acknowledges delivery
+	// Send a message and verify that delivery ack does NOT purge it from PostgreSQL (R1 fix).
 	resp, raw = aliceClient.doJSON(http.MethodPost, sendPath, map[string]any{
-		"body":             "E2EE:v1:encrypted-packet",
-		"clientMessageId":  "client-msg-e2ee-001",
+		"body":             "mensagem de teste de entrega",
+		"clientMessageId":  "client-msg-delivery-001",
 		"replyToMessageId": nil,
 		"attachmentIds":    []string{},
 	}, true)
 	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("expected 201 sending E2EE message, got %d: %s", resp.StatusCode, string(raw))
+		t.Fatalf("expected 201 sending message, got %d: %s", resp.StatusCode, string(raw))
 	}
-	var e2eeMsg messages.Message
-	_ = json.Unmarshal(raw, &e2eeMsg)
+	var deliveryMsg messages.Message
+	_ = json.Unmarshal(raw, &deliveryMsg)
 
-	// Send message.ack over Bob's WebSocket so the Signal Ephemeral Queue purges the message
+	// Send message.ack over Bob's WebSocket
 	ackPayload, _ := json.Marshal(map[string]any{
 		"type": "message.ack",
 		"data": map[string]any{
 			"conversationId": createdConv.ID,
-			"messageId":      e2eeMsg.ID,
+			"messageId":      deliveryMsg.ID,
 		},
 	})
 	if err := wsConn.Write(wsCtx, websocket.MessageText, ackPayload); err != nil {
@@ -601,19 +599,25 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 	}
 	time.Sleep(50 * time.Millisecond)
 
-	// After Bob acknowledges delivery, the Signal queue must have purged the message from PostgreSQL
+	// R1 fix: after delivery ack, the message must still exist in PostgreSQL
+	// so that history, attachments and read-status remain correct.
 	resp, raw = aliceClient.doJSON(http.MethodGet, "/api/v1/conversations/"+createdConv.ID+"/messages", nil, false)
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 listing messages after Signal purge, got %d", resp.StatusCode)
+		t.Fatalf("expected 200 listing messages after delivery ack, got %d", resp.StatusCode)
 	}
 	var msgPage struct {
 		Data []messages.Message `json:"data"`
 	}
 	_ = json.Unmarshal(raw, &msgPage)
+	found := false
 	for _, m := range msgPage.Data {
-		if m.ID == e2eeMsg.ID {
-			t.Fatalf("expected message %s to be purged from DB after delivery ack", e2eeMsg.ID)
+		if m.ID == deliveryMsg.ID {
+			found = true
+			break
 		}
+	}
+	if !found {
+		t.Fatalf("R1 regression: message %s was purged from DB after delivery ack; it must be retained", deliveryMsg.ID)
 	}
 
 	// Direct conversation deletion hides it only for Alice while Bob still sees it
@@ -674,4 +678,3 @@ func TestBackendIntegration_AuthConversationsMessagesUploadsAndRealtime(t *testi
 		t.Fatalf("expected 401 for deleted user Eve's session, got %d", resp.StatusCode)
 	}
 }
-

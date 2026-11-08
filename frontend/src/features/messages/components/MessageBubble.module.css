@@ -137,24 +137,30 @@
 .actionBtn {
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   padding: 2px var(--space-2);
   font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  font-weight: 500;
+  color: var(--color-accent);
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
 }
 
 .actionBtn:hover {
-  background-color: var(--color-surface-secondary);
-  color: var(--color-text);
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent-hover);
 }
 
 .retryBtn {
   background-color: var(--color-danger-subtle);
   color: var(--color-danger);
   border: 1px solid var(--color-danger);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   padding: 2px var(--space-2);
   font-size: var(--font-size-xs);
-  font-weight: 500;
+  font-weight: 600;
+  white-space: nowrap;
 }
 

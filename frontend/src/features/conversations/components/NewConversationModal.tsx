@@ -228,8 +228,9 @@ export function NewConversationModal({
               />
               <Button
                 type="button"
-                variant="secondary"
+                variant="tinted"
                 size="sm"
+                loading={addContactMutation.isPending}
                 onClick={handleAddContact}
                 disabled={!contactUsername.trim() || addContactMutation.isPending}
               >
@@ -263,6 +264,7 @@ export function NewConversationModal({
                     type="button"
                     variant="primary"
                     size="sm"
+                    loading={inviteUserMutation.isPending}
                     disabled={inviteUserMutation.isPending}
                     onClick={() =>
                       inviteUserMutation.mutate({
@@ -354,7 +356,12 @@ export function NewConversationModal({
             <Button variant="secondary" onClick={onClose} disabled={isCreating}>
               {ptBR.newConversation.cancelButton}
             </Button>
-            <Button type="submit" variant="primary" disabled={isCreating}>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isCreating}
+              disabled={isCreating}
+            >
               {isCreating
                 ? ptBR.newConversation.creatingButton
                 : ptBR.newConversation.createButton}

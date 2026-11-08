@@ -134,15 +134,6 @@ export function ConversationSidebar({
           <h1 className={styles.appTitle}>{ptBR.app.title}</h1>
         </div>
         <div className={styles.headerActions}>
-          {currentUser.isAdmin && onOpenAdminPanel && (
-            <Button
-              variant={pendingAdminRequestsCount > 0 ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={onOpenAdminPanel}
-            >
-              {ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
-            </Button>
-          )}
           <Button
             variant="ghost"
             size="sm"
@@ -293,32 +284,44 @@ export function ConversationSidebar({
       )}
 
       <div className={styles.footer}>
-        <div className={styles.userSummary}>
-          <Avatar
-            name={currentUser.displayName}
-            avatarUrl={currentUser.avatarUrl}
-            size="sm"
-          />
-          <div className={styles.userStack}>
-            <span className={styles.userName}>{currentUser.displayName}</span>
-            {currentUser.username && (
-              <span className={styles.userHandle}>@{currentUser.username}</span>
-            )}
+        <div className={styles.footerTop}>
+          <div className={styles.userSummary}>
+            <Avatar
+              name={currentUser.displayName}
+              avatarUrl={currentUser.avatarUrl}
+              size="sm"
+            />
+            <div className={styles.userStack}>
+              <span className={styles.userName}>{currentUser.displayName}</span>
+              {currentUser.username && (
+                <span className={styles.userHandle}>@{currentUser.username}</span>
+              )}
+            </div>
           </div>
-        </div>
-        <div className={styles.headerActions}>
           <BackendStatusBadge realtimeState={connectionState} />
+        </div>
+        <div className={styles.footerActions}>
+          {currentUser.isAdmin && onOpenAdminPanel && (
+            <Button
+              variant={pendingAdminRequestsCount > 0 ? 'tinted' : 'secondary'}
+              size="sm"
+              onClick={onOpenAdminPanel}
+            >
+              {ptBR.admin.buttonLabel(pendingAdminRequestsCount)}
+            </Button>
+          )}
           <Button
-            variant="ghost"
+            variant="link"
             size="sm"
             onClick={onOpenChangePassword}
           >
             {ptBR.auth.changePasswordButton}
           </Button>
           <Button
-            variant="ghost"
+            variant="link"
             size="sm"
             onClick={onLogout}
+            loading={isLoggingOut}
             disabled={isLoggingOut}
           >
             {isLoggingOut ? ptBR.auth.loggingOut : ptBR.auth.logout}

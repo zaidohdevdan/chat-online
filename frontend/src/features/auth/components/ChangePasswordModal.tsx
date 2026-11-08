@@ -153,7 +153,12 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
             >
               {ptBR.common.cancel}
             </Button>
-            <Button type="submit" variant="primary" disabled={mutation.isPending}>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={mutation.isPending}
+              disabled={mutation.isPending}
+            >
               {mutation.isPending
                 ? ptBR.auth.savingPasswordButton
                 : ptBR.auth.savePasswordButton}

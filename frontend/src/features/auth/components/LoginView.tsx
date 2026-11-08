@@ -104,6 +104,7 @@ export function LoginView() {
             type="submit"
             variant="primary"
             className={styles.submitBtn}
+            loading={isLoggingIn}
             disabled={isLoggingIn || !username.trim() || !password}
           >
             {isLoggingIn ? ptBR.auth.submittingLogin : ptBR.auth.submitLogin}

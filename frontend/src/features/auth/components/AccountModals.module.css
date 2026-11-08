@@ -6,12 +6,13 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background-color: rgba(0, 0, 0, 0.45);
+  background-color: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(8px);
 }
 
 .modal {
   width: 100%;
-  max-width: 500px;
+  max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
   padding: var(--space-6);
@@ -35,6 +36,7 @@
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: 600;
+  letter-spacing: -0.015em;
 }
 
 .subtitle {
@@ -47,7 +49,8 @@
   margin: 0;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .formStack {
@@ -65,15 +68,26 @@
 .label {
   font-size: var(--font-size-sm);
   font-weight: 500;
+  color: var(--color-text);
 }
 
 .input {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-strong);
   background-color: var(--color-surface-secondary);
   font-size: var(--font-size-sm);
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease);
+}
+
+.input:focus {
+  background-color: var(--color-surface);
+  border-color: var(--color-accent);
 }
 
 .requestList {
@@ -90,7 +104,7 @@
 .requestCard {
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   background-color: var(--color-surface-secondary);
   display: flex;
   flex-direction: column;
@@ -99,6 +113,7 @@
 
 .requestTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
@@ -107,6 +122,7 @@
 .requestHandle {
   font-size: var(--font-size-sm);
   font-weight: 600;
+  color: var(--color-text);
 }
 
 .requestMeta {
@@ -129,12 +145,14 @@
 .successText {
   margin: 0;
   font-size: var(--font-size-xs);
+  font-weight: 500;
   color: var(--color-success);
 }
 
 .errorText {
   margin: 0;
   font-size: var(--font-size-xs);
+  font-weight: 500;
   color: var(--color-danger);
 }
 
@@ -142,5 +160,5 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
+  padding-top: var(--space-1);
 }
-

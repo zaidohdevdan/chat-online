@@ -19,6 +19,7 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
   const [manualDisplayName, setManualDisplayName] = useState('');
   const [manualPassword, setManualPassword] = useState('mudar1234');
   const [requestPasswords, setRequestPasswords] = useState<Record<string, string>>({});
+  const [activeActionId, setActiveActionId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -40,8 +41,10 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
     onSuccess: (createdUser) => {
       setErrorMsg(null);
       setFeedback(ptBR.admin.accountCreatedSuccess(createdUser.username ?? createdUser.displayName));
-      setManualUsername('');
-      setManualDisplayName('');
+      if (activeActionId === 'manual') {
+        setManualUsername('');
+        setManualDisplayName('');
+      }
       void queryClient.invalidateQueries({ queryKey: ['admin', 'account-requests'] });
       void queryClient.invalidateQueries({ queryKey: ['users', 'search'] });
     },
@@ -52,6 +55,9 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
       } else {
         setErrorMsg(ptBR.common.errorGeneric);
       }
+    },
+    onSettled: () => {
+      setActiveActionId(null);
     },
   });
 
@@ -73,6 +79,7 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
 
   const handleApproveRequest = (req: AccountRequestItem) => {
     const pwd = (requestPasswords[req.id] ?? 'mudar1234').trim();
+    setActiveActionId(req.id);
     createMutation.mutate({
       username: req.requestedUsername,
       displayName: req.requestedDisplayName,
@@ -83,12 +90,15 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
   const handleManualSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!manualUsername.trim() || !manualPassword) return;
+    setActiveActionId('manual');
     createMutation.mutate({
       username: manualUsername,
       displayName: manualDisplayName,
       password: manualPassword,
     });
   };
+
+  const isManualSubmitting = createMutation.isPending && activeActionId === 'manual';
 
   return (
     <div
@@ -107,7 +117,7 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
           <h2 id={dialogTitleId} className={styles.title}>
             {ptBR.admin.modalTitle}
           </h2>
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          <Button type="button" variant="link" size="sm" onClick={onClose}>
             {ptBR.common.close}
           </Button>
         </div>
@@ -119,6 +129,7 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
           <ul className={styles.requestList}>
             {pendingRequests.map((req) => {
               const pwdValue = requestPasswords[req.id] ?? 'mudar1234';
+              const isApprovingThis = createMutation.isPending && activeActionId === req.id;
               return (
                 <li key={req.id} className={styles.requestCard}>
                   <div className={styles.requestTop}>
@@ -151,10 +162,11 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
                       type="button"
                       variant="primary"
                       size="sm"
+                      loading={isApprovingThis}
                       disabled={createMutation.isPending || pwdValue.trim().length < 8}
                       onClick={() => handleApproveRequest(req)}
                     >
-                      {createMutation.isPending
+                      {isApprovingThis
                         ? ptBR.admin.approvingButton
                         : ptBR.admin.approveButton}
                     </Button>
@@ -229,13 +241,14 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
             <Button
               type="submit"
               variant="primary"
+              loading={isManualSubmitting}
               disabled={
                 createMutation.isPending ||
                 !manualUsername.trim() ||
                 manualPassword.length < 8
               }
             >
-              {createMutation.isPending
+              {isManualSubmitting
                 ? ptBR.admin.creatingAccountButton
                 : ptBR.admin.createAccountButton}
             </Button>
@@ -245,4 +258,3 @@ export function AdminPanelModal({ open, isAdmin, onClose }: AdminPanelModalProps
     </div>
   );
 }
-

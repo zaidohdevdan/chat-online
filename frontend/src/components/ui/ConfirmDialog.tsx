@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ptBR } from '../../lib/i18n';
 import { Button } from './Button';
 import styles from './ConfirmDialog.module.css';
@@ -33,9 +33,13 @@ export function ConfirmDialog({
   const titleId = useId();
   const descId = useId();
   const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const [clickedAction, setClickedAction] = useState<'primary' | 'secondary' | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setClickedAction(null);
+      return;
+    }
     cancelRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -81,17 +85,25 @@ export function ConfirmDialog({
           </Button>
           {secondaryLabel && onSecondaryAction && (
             <Button
-              variant="secondary"
-              onClick={onSecondaryAction}
+              variant="tinted"
+              loading={isLoading && clickedAction === 'secondary'}
               disabled={isLoading}
+              onClick={() => {
+                setClickedAction('secondary');
+                onSecondaryAction();
+              }}
             >
               {secondaryLabel}
             </Button>
           )}
           <Button
             variant={danger ? 'danger' : 'primary'}
-            onClick={onConfirm}
+            loading={isLoading && (clickedAction === 'primary' || !secondaryLabel)}
             disabled={isLoading}
+            onClick={() => {
+              setClickedAction('primary');
+              onConfirm();
+            }}
           >
             {confirmLabel}
           </Button>
@@ -100,4 +112,3 @@ export function ConfirmDialog({
     </div>
   );
 }
-
